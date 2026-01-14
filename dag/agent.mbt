@@ -1,5 +1,9 @@
 ///|
-/// Agent configuration used to run a task node.
+/// Configuration for a named agent used to execute workflow tasks.
+///
+/// `name` must be unique within a workflow and is referenced by `TaskNode.agent`.
+/// `role` is included in prompts to describe the agent's responsibilities.
+/// Optional fields override values from `RunOptions` when they are present.
 pub struct AgentSpec {
   name : String
   role : String
@@ -9,7 +13,10 @@ pub struct AgentSpec {
 }
 
 ///|
-/// Construct a new agent profile.
+/// Build an agent profile with optional overrides.
+///
+/// Omitted optional parameters default to `None`, which means `RunOptions`
+/// provides the effective model, sandbox mode, and working directory.
 pub fn AgentSpec::new(
   name : String,
   role : String,
@@ -22,6 +29,8 @@ pub fn AgentSpec::new(
 
 ///|
 /// Render a short label for logs.
+///
+/// When a model override is set, the label becomes `"<name> (<model>)"`.
 pub fn AgentSpec::label(agent : AgentSpec) -> String {
   if agent.model is Some(model) {
     "\{agent.name} (\{model})"

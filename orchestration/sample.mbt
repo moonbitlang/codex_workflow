@@ -1,11 +1,16 @@
 ///|
 /// Return the list of built-in sample workflows.
+///
+/// The current samples are `"kickoff"` (planning + summary) and `"review"`
+/// (lightweight repo review).
 pub fn sample_workflows() -> Array[(String, @dag.Workflow)] {
   [("kickoff", kickoff_workflow()), ("review", review_workflow())]
 }
 
 ///|
 /// Lookup a sample workflow by name.
+///
+/// Returns `None` when the name is not recognized.
 pub fn sample_workflow(name : String) -> @dag.Workflow? {
   for item in sample_workflows() {
     let (workflow_name, workflow) = item
@@ -18,6 +23,8 @@ pub fn sample_workflow(name : String) -> @dag.Workflow? {
 
 ///|
 /// Return the sample names for help output.
+///
+/// The order matches `sample_workflows()`.
 pub fn sample_names() -> Array[String] {
   let names : Array[String] = []
   for item in sample_workflows() {
@@ -28,6 +35,7 @@ pub fn sample_names() -> Array[String] {
 }
 
 ///|
+/// Build the "kickoff" planning workflow.
 fn kickoff_workflow() -> @dag.Workflow {
   let agents = [
     @dag.AgentSpec::new(
@@ -80,6 +88,7 @@ fn kickoff_workflow() -> @dag.Workflow {
 }
 
 ///|
+/// Build the "review" workflow used for quick repo scans.
 fn review_workflow() -> @dag.Workflow {
   let agents = [
     @dag.AgentSpec::new(

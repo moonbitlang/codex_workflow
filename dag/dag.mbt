@@ -1,5 +1,9 @@
 ///|
-/// A single task in a workflow DAG.
+/// A single unit of work in a workflow DAG.
+///
+/// `id` must be unique within the workflow and is used in dependency lists.
+/// `deps` lists prerequisite node ids that must finish before this node runs.
+/// `agent` must match an `AgentSpec.name` in the workflow.
 pub struct TaskNode {
   id : String
   title : String
@@ -9,6 +13,9 @@ pub struct TaskNode {
 }
 
 ///|
+/// Construct a task node.
+///
+/// The arguments map directly to `TaskNode` fields; no validation is performed.
 pub fn TaskNode::new(
   id : String,
   title : String,
@@ -20,13 +27,19 @@ pub fn TaskNode::new(
 }
 
 ///|
-/// A workflow definition with agents and nodes.
+/// A workflow definition containing agents and task nodes.
+///
+/// Ensure all `TaskNode.agent` values refer to a declared `AgentSpec`, and
+/// dependencies form a DAG without cycles.
 pub struct Workflow {
   agents : Array[AgentSpec]
   nodes : Array[TaskNode]
 }
 
 ///|
+/// Build a workflow definition from agent and node lists.
+///
+/// This constructor does not validate agent uniqueness or node dependencies.
 pub fn Workflow::new(
   agents : Array[AgentSpec],
   nodes : Array[TaskNode],
@@ -35,7 +48,11 @@ pub fn Workflow::new(
 }
 
 ///|
-/// Options for running a workflow.
+/// Options that control workflow execution.
+///
+/// `concurrency` caps how many nodes can run in parallel per wave.
+/// `working_directory` is the default repo root for all agents.
+/// `default_sandbox` and `default_model` apply when agents do not override them.
 pub struct RunOptions {
   concurrency : Int
   working_directory : String
@@ -44,6 +61,9 @@ pub struct RunOptions {
 }
 
 ///|
+/// Create run options with defaults for sandbox and model.
+///
+/// `default_sandbox` defaults to `ReadOnly` when not provided.
 pub fn RunOptions::new(
   working_directory : String,
   concurrency : Int,
@@ -55,6 +75,8 @@ pub fn RunOptions::new(
 
 ///|
 /// Describe the workflow structure for humans.
+///
+/// Returns a multi-line summary including the agent list and node dependencies.
 pub fn describe_workflow(workflow : Workflow) -> String {
   let agent_names = workflow.agents.map(fn(agent) { agent.name }).join(", ")
   let mut output = "Agents: \{agent_names}\n"
@@ -73,6 +95,9 @@ pub fn describe_workflow(workflow : Workflow) -> String {
 
 ///|
 /// Render the workflow DAG as a top-down ASCII graph.
+///
+/// Uses node ids as labels. If there are no nodes, returns `"(no workflow nodes)"`.
+/// Dependencies are assumed to exist; unknown ids may produce a degraded layout.
 pub fn render_workflow_dag(workflow : Workflow) -> String {
   if workflow.nodes.is_empty() {
     return "(no workflow nodes)"
@@ -245,6 +270,9 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
 
 ///|
 /// Render the workflow as topological execution waves.
+///
+/// Returns an error string when node ids are duplicated, dependencies are missing,
+/// or the graph contains cycles. Concurrency limits are not considered here.
 pub fn render_workflow_plan(workflow : Workflow) -> String {
   if workflow.nodes.is_empty() {
     return "(no workflow nodes)"
@@ -305,6 +333,7 @@ pub fn render_workflow_plan(workflow : Workflow) -> String {
 }
 
 ///|
+/// Internal ASCII canvas for workflow rendering.
 priv struct Canvas {
   width : Int
   height : Int
@@ -312,6 +341,7 @@ priv struct Canvas {
 }
 
 ///|
+/// Allocate a canvas filled with spaces.
 fn Canvas::new(width : Int, height : Int) -> Canvas {
   let rows =
     Array::makei(height, fn(_) {
@@ -321,6 +351,7 @@ fn Canvas::new(width : Int, height : Int) -> Canvas {
 }
 
 ///|
+/// Set a character on the canvas, merging with existing edges when needed.
 fn Canvas::set(canvas : Canvas, x : Int, y : Int, ch : Char) -> Unit {
   if x < 0 || y < 0 || x >= canvas.width || y >= canvas.height {
     return
@@ -331,6 +362,7 @@ fn Canvas::set(canvas : Canvas, x : Int, y : Int, ch : Char) -> Unit {
 }
 
 ///|
+/// Merge overlapping line characters to keep ASCII edges readable.
 fn merge_char(existing : Char, incoming : Char) -> Char {
   if incoming == ' ' {
     return existing
@@ -358,6 +390,7 @@ fn merge_char(existing : Char, incoming : Char) -> Char {
 }
 
 ///|
+/// Draw a horizontal line between two x positions.
 fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
   let start = if x1 < x2 { x1 } else { x2 }
   let end = if x1 < x2 { x2 } else { x1 }
@@ -369,6 +402,7 @@ fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
 }
 
 ///|
+/// Draw a label string at a fixed row and starting column.
 fn draw_label(canvas : Canvas, x : Int, y : Int, label : String) -> Unit {
   if y < 0 || y >= canvas.height {
     return

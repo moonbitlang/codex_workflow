@@ -1,4 +1,5 @@
 ///|
+/// Internal dependency tracking for wave execution.
 priv struct Graph {
   nodes : Map[String, @dag.TaskNode]
   dependents : Map[String, Array[String]]
@@ -7,6 +8,13 @@ priv struct Graph {
 
 ///|
 /// Execute a workflow DAG using the configured agents.
+///
+/// Nodes run in dependency waves. Each wave runs with a concurrency cap from
+/// `RunOptions`. Returns a map of node ids to their final response strings.
+///
+/// Raises on duplicate agent names, duplicate node ids, missing dependencies,
+/// or if the graph cannot complete (cycles). Per-node execution failures are
+/// captured as `"ERROR: ..."` outputs and logged to stderr.
 pub async fn run_workflow(
   workflow : @dag.Workflow,
   codex : @codex.Codex,
@@ -84,6 +92,7 @@ pub async fn run_workflow(
 }
 
 ///|
+/// Execute a single node using agent overrides and dependency outputs.
 async fn run_node(
   node : @dag.TaskNode,
   agent : @dag.AgentSpec,
@@ -110,6 +119,7 @@ async fn run_node(
 }
 
 ///|
+/// Build the prompt text for a node, including dependency outputs when present.
 fn build_prompt(
   node : @dag.TaskNode,
   agent : @dag.AgentSpec,
@@ -135,6 +145,7 @@ fn build_prompt(
 }
 
 ///|
+/// Index agents by name and fail fast on duplicates.
 fn build_agent_map(workflow : @dag.Workflow) -> Map[String, @dag.AgentSpec] raise {
   let agent_map : Map[String, @dag.AgentSpec] = {}
   for agent in workflow.agents {
@@ -147,6 +158,7 @@ fn build_agent_map(workflow : @dag.Workflow) -> Map[String, @dag.AgentSpec] rais
 }
 
 ///|
+/// Build the dependency graph for workflow execution.
 fn build_graph(workflow : @dag.Workflow) -> Graph raise {
   let nodes : Map[String, @dag.TaskNode] = {}
   let dependents : Map[String, Array[String]] = {}
@@ -172,6 +184,7 @@ fn build_graph(workflow : @dag.Workflow) -> Graph raise {
 }
 
 ///|
+/// Retrieve a node by id or raise a descriptive error.
 fn require_node(
   nodes : Map[String, @dag.TaskNode],
   node_id : String,
@@ -183,6 +196,7 @@ fn require_node(
 }
 
 ///|
+/// Retrieve an agent by name or raise a descriptive error.
 fn require_agent(
   agents : Map[String, @dag.AgentSpec],
   name : String,
