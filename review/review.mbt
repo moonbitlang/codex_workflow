@@ -1,57 +1,130 @@
-///|
-priv struct PackageReviewOptions {
-  repo_path : String
-  worktrees_root : String
-  base_ref : String
-  concurrency : Int
-  model : String?
-  draft : Bool
-  cleanup : Bool
-}
+/// # Package Review Module
+///
+/// This module provides automated, parallel code review functionality for MoonBit packages
+/// using AI-powered agents (Codex). It creates isolated Git worktrees for each package,
+/// runs formatting/linting/testing, applies minimal fixes, and opens draft Pull Requests.
+///
+/// ## Architecture
+///
+/// The review process follows these steps:
+/// 1. **Discovery**: Scans the repository for MoonBit packages (`moon.pkg` or `moon.pkg.json`)
+/// 2. **Worktree Setup**: Creates isolated Git worktrees for each package (one branch per package)
+/// 3. **Parallel Review**: Spawns AI agents to review each package concurrently
+/// 4. **PR Creation**: Commits changes, pushes branches, and opens draft PRs via `gh` CLI
+///
+/// ## Prerequisites
+///
+/// - Git repository with MoonBit packages
+/// - `gh` CLI installed and authenticated (for PR creation)
+/// - `rg` (ripgrep) or `find` available for package discovery
+/// - MoonBit toolchain (`moon` command)
+///
+/// ## Usage
+///
+/// ```moonbit
+/// @review.run_package_reviews(
+///   repo_path="~/my-moonbit-repo",
+///   worktrees_root="",
+///   base_ref="origin/main",
+///   concurrency=4,
+///   model=None,
+///   draft=true,
+///   cleanup=false,
+/// )
+/// ```
 
 ///|
+/// Configuration options for the package review process.
+pub struct PackageReviewOptions {
+  /// Path to the Git repository (supports `~` expansion)
+  repo_path : String
+  /// Directory to store worktrees (default: `<repo>.worktrees`)
+  worktrees_root : String
+  /// Base Git ref for branching (e.g., "origin/main")
+  base_ref : String
+  /// Maximum number of concurrent review agents
+  concurrency : Int
+  /// Optional AI model name override
+  model : String?
+  /// If true, creates draft PRs; otherwise ready-for-review
+  draft : Bool
+  /// If true, removes worktrees that have no changes
+  cleanup : Bool
+} derive(Show)
+
+///|
+/// Represents a single package review task with its associated Git branch and worktree.
 priv struct PackageReview {
+  /// Relative path to the package directory (e.g., "workflow" or "." for root)
   package_dir : String
+  /// Git branch name for this review (e.g., "review/workflow")
   branch : String
+  /// Absolute path to the Git worktree for isolated changes
   worktree_path : String
+  /// Unique name for the AI agent handling this package
   agent_name : String
+  /// Unique task identifier in the workflow DAG
   task_id : String
 }
 
 ///|
-pub async fn run_package_reviews(
+/// Result of the prepare phase, containing ready reviews and the workflow.
+/// Use `workflow()` to access the workflow DAG for preview/inspection.
+pub struct PreparedReview {
+  priv reviews : Array[PackageReview]
+  priv workflow : @workflow.Workflow
+  priv repo : String
+  priv base_ref : String
+}
+
+///|
+/// Returns the workflow DAG for inspection (e.g., rendering with `render_workflow_dag`).
+pub fn PreparedReview::workflow(self : PreparedReview) -> @workflow.Workflow {
+  self.workflow
+}
+
+///|
+/// Returns the number of packages that will be reviewed.
+pub fn PreparedReview::package_count(self : PreparedReview) -> Int {
+  self.reviews.length()
+}
+
+///|
+/// Creates default options with sensible defaults.
+pub fn PackageReviewOptions::new(
   repo_path : String,
-  worktrees_root : String,
-  base_ref : String,
-  concurrency : Int,
-  model : String?,
-  draft : Bool,
-  cleanup : Bool,
-) -> Unit {
-  let options = PackageReviewOptions::{
-    repo_path,
-    worktrees_root,
-    base_ref,
-    concurrency,
-    model,
-    draft,
-    cleanup,
-  }
+  base_ref~ : String = "origin/main",
+  worktrees_root~ : String = "",
+  concurrency~ : Int = 4,
+  model~ : String? = None,
+  draft~ : Bool = true,
+  cleanup~ : Bool = false,
+) -> PackageReviewOptions {
+  { repo_path, worktrees_root, base_ref, concurrency, model, draft, cleanup }
+}
+
+///|
+/// Prepares package reviews without executing them.
+/// Use this for preview/dry-run to inspect the workflow DAG before running.
+///
+/// Returns `None` if the repository is invalid or no packages are found.
+pub async fn prepare_package_reviews(
+  options : PackageReviewOptions
+) -> PreparedReview? {
   let repo = normalize_path(expand_home(options.repo_path))
   if !is_git_repo(repo) {
-    return
+    return None
   }
   let base = options.base_ref
-  let worktrees =
-    if options.worktrees_root.is_empty() {
-      default_worktrees_root(repo)
-    } else {
-      normalize_path(expand_home(options.worktrees_root))
-    }
+  let worktrees = if options.worktrees_root.is_empty() {
+    default_worktrees_root(repo)
+  } else {
+    normalize_path(expand_home(options.worktrees_root))
+  }
   let packages = discover_packages(repo)
   if packages.is_empty() {
     @stdio.stdout.write("No MoonBit packages found in \{repo}\n")
-    return
+    return None
   }
   ensure_directory(worktrees)
   let reviews = build_package_reviews(packages, worktrees)
@@ -63,27 +136,37 @@ pub async fn run_package_reviews(
   }
   if ready.is_empty() {
     @stdio.stderr.write("No worktrees available to review.\n")
-    return
+    return None
   }
   let workflow = build_review_workflow(ready, options.model, repo, base)
+  Some(PreparedReview::{ reviews: ready, workflow, repo, base_ref: base })
+}
+
+///|
+/// Executes a prepared review workflow.
+/// Call `prepare_package_reviews` first to get the `PreparedReview`.
+pub async fn execute_prepared_review(
+  prepared : PreparedReview,
+  options : PackageReviewOptions,
+) -> Unit {
   let codex = @codex.Codex::new()
   let run_options = @workflow.RunOptions::new(
-    repo,
+    prepared.repo,
     options.concurrency,
     default_sandbox=@codex.SandboxMode::WorkspaceWrite,
     default_model?=options.model,
   )
   @stdio.stdout.write(
-    "Reviewing \{ready.length()} packages with concurrency \{run_options.concurrency}...\n",
+    "Reviewing \{prepared.reviews.length()} packages with concurrency \{run_options.concurrency}...\n",
   )
-  let results = @workflow.run_workflow(workflow, codex, run_options) catch {
+  let results = @workflow.run_workflow(prepared.workflow, codex, run_options) catch {
     e => {
       @stdio.stderr.write("Package review failed: \{e}\n")
       return
     }
   }
-  let base_branch = pr_base_branch(base)
-  for review in ready {
+  let base_branch = pr_base_branch(prepared.base_ref)
+  for review in prepared.reviews {
     let output = results.get(review.task_id).unwrap_or("")
     let changed_files = list_changed_files(review.worktree_path)
     if changed_files.is_empty() {
@@ -91,7 +174,7 @@ pub async fn run_package_reviews(
         "Package \{review.package_dir}: no changes detected.\n",
       )
       if options.cleanup {
-        remove_worktree(repo, review.worktree_path)
+        remove_worktree(prepared.repo, review.worktree_path)
       }
       continue
     }
@@ -127,6 +210,23 @@ pub async fn run_package_reviews(
 }
 
 ///|
+/// Main entry point for parallel package reviews.
+///
+/// This function orchestrates the entire review process:
+/// 1. Validates the repository and discovers MoonBit packages
+/// 2. Creates Git worktrees for isolated package reviews
+/// 3. Builds a workflow DAG with one agent per package
+/// 4. Executes reviews in parallel (respecting concurrency limit)
+/// 5. Creates draft PRs for packages with changes
+pub async fn run_package_reviews(options : PackageReviewOptions) -> Unit {
+  match prepare_package_reviews(options) {
+    Some(prepared) => execute_prepared_review(prepared, options)
+    None => ()
+  }
+}
+
+///|
+/// Expands `~` to the user's home directory in a path string.
 fn expand_home(path : String) -> String {
   if path.has_prefix("~") {
     let home = @sys.get_env_var("HOME").unwrap_or("")
@@ -144,11 +244,13 @@ fn expand_home(path : String) -> String {
 }
 
 ///|
+/// Normalizes a path by resolving `.` and `..` components.
 fn normalize_path(path : String) -> String {
   @path.Path(path).normalize().to_string()
 }
 
 ///|
+/// Computes the default worktrees directory: `<repo-name>.worktrees` in the parent folder.
 fn default_worktrees_root(repo_path : String) -> String {
   let repo = @path.Path(repo_path)
   let parent = repo.dirname()
@@ -158,6 +260,7 @@ fn default_worktrees_root(repo_path : String) -> String {
 }
 
 ///|
+/// Checks if the given path is inside a valid Git repository.
 async fn is_git_repo(repo : String) -> Bool {
   let (code, output) = run_command_output(
     "git",
@@ -171,11 +274,14 @@ async fn is_git_repo(repo : String) -> Bool {
 }
 
 ///|
+/// Creates a directory (and parents) if it doesn't exist.
 async fn ensure_directory(path : String) -> Unit {
   let _ = @process.run("mkdir", ["-p", path], inherit_env=true)
 }
 
 ///|
+/// Discovers all MoonBit packages in a repository by finding `moon.pkg` files.
+/// Ignores `_build/`, `target/`, `.git/`, and `.worktrees/` directories.
 async fn discover_packages(repo : String) -> Array[String] {
   let packages : Map[String, Bool] = {}
   let files = find_package_files(repo)
@@ -197,6 +303,7 @@ async fn discover_packages(repo : String) -> Array[String] {
 }
 
 ///|
+/// Finds all `moon.pkg` and `moon.pkg.json` files using ripgrep (or find as fallback).
 async fn find_package_files(repo : String) -> Array[String] {
   let (code, output) = run_command_output(
     "rg",
@@ -216,6 +323,7 @@ async fn find_package_files(repo : String) -> Array[String] {
 }
 
 ///|
+/// Returns true if the path should be ignored (build artifacts, git internals, etc.).
 fn should_ignore_path(path : String) -> Bool {
   path.has_prefix("_build/") ||
   path.has_prefix("target/") ||
@@ -232,6 +340,8 @@ fn trim_prefix(path : String, prefix : String) -> String {
 }
 
 ///|
+/// Creates PackageReview entries for each discovered package.
+/// Each review gets a unique branch, worktree path, agent name, and task ID.
 fn build_package_reviews(
   packages : Array[String],
   worktrees_root : String,
@@ -255,6 +365,7 @@ fn build_package_reviews(
 }
 
 ///|
+/// Converts a package path to a URL/branch-safe slug (e.g., "src/lib" -> "src-lib").
 fn slugify_package(package_dir : String) -> String {
   if package_dir == "." {
     return "root"
@@ -277,6 +388,8 @@ fn join_path(left : String, right : String) -> String {
 }
 
 ///|
+/// Creates a Git worktree for the package review, or reuses an existing one.
+/// Returns false if worktree creation fails.
 async fn ensure_worktree(
   repo : String,
   review : PackageReview,
@@ -318,6 +431,8 @@ async fn ensure_worktree(
 }
 
 ///|
+/// Builds a workflow DAG with one agent and task per package.
+/// All tasks are independent (no dependencies), enabling full parallelism.
 fn build_review_workflow(
   reviews : Array[PackageReview],
   model : String?,
@@ -362,6 +477,8 @@ fn build_review_workflow(
 }
 
 ///|
+/// Generates the AI agent prompt for reviewing a specific package.
+/// Instructs the agent to run `moon fmt`, `moon check`, and `moon test`.
 fn build_review_prompt(
   package_dir : String,
   repo : String,
@@ -407,6 +524,7 @@ fn default_tests(package_dir : String) -> Array[String] {
 }
 
 ///|
+/// Lists all changed files (staged, unstaged, and untracked) in a worktree.
 async fn list_changed_files(worktree_path : String) -> Array[String] {
   let (code, output) = run_command_output(
     "git",
@@ -439,6 +557,7 @@ async fn list_changed_files(worktree_path : String) -> Array[String] {
 }
 
 ///|
+/// Validates that all changed files are within the specified package directory.
 fn all_in_package(files : Array[String], package_dir : String) -> Bool {
   if package_dir == "." {
     return true
@@ -454,11 +573,13 @@ fn all_in_package(files : Array[String], package_dir : String) -> Bool {
 }
 
 ///|
+/// Generates a default PR title for a package review.
 fn default_review_title(package_dir : String) -> String {
   "review(\{package_dir}): updates"
 }
 
 ///|
+/// Builds the PR body from the agent's summary output and test commands.
 fn build_review_body(
   raw : String,
   package_dir : String,
@@ -483,6 +604,7 @@ fn build_review_body(
 }
 
 ///|
+/// Stages and commits changes in the package directory.
 async fn commit_package_changes(
   worktree_path : String,
   package_dir : String,
@@ -512,6 +634,7 @@ async fn commit_package_changes(
 }
 
 ///|
+/// Pushes the review branch to the remote repository.
 async fn push_branch(worktree_path : String, branch : String) -> Bool {
   let (code, output) = run_command_output(
     "git",
@@ -525,6 +648,7 @@ async fn push_branch(worktree_path : String, branch : String) -> Bool {
 }
 
 ///|
+/// Creates a Pull Request using the `gh` CLI tool.
 async fn create_pr(
   worktree_path : String,
   branch : String,
@@ -566,6 +690,7 @@ async fn create_pr(
 }
 
 ///|
+/// Extracts the branch name from a ref (e.g., "origin/main" -> "main").
 fn pr_base_branch(base_ref : String) -> String {
   let mut last = base_ref
   for part in base_ref.split("/") {
@@ -575,6 +700,7 @@ fn pr_base_branch(base_ref : String) -> String {
 }
 
 ///|
+/// Removes a Git worktree (cleanup when no changes detected).
 async fn remove_worktree(repo : String, worktree_path : String) -> Unit {
   let _ = run_command_output(
     "git",
@@ -583,6 +709,8 @@ async fn remove_worktree(repo : String, worktree_path : String) -> Unit {
 }
 
 ///|
+/// Runs a shell command and captures both stdout and stderr.
+/// Returns (exit_code, combined_output).
 async fn run_command_output(
   command : String,
   args : Array[String],

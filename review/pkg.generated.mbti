@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "codex_worfkow/review"
+
+import(
+  "codex_worfkow/workflow"
+)
+
+// Values
+pub async fn execute_prepared_review(PreparedReview, PackageReviewOptions) -> Unit
+
+pub async fn prepare_package_reviews(PackageReviewOptions) -> PreparedReview?
+
+pub async fn run_package_reviews(PackageReviewOptions) -> Unit
+
+// Errors
+
+// Types and methods
+pub struct PackageReviewOptions {
+  repo_path : String
+  worktrees_root : String
+  base_ref : String
+  concurrency : Int
+  model : String?
+  draft : Bool
+  cleanup : Bool
+}
+pub fn PackageReviewOptions::new(String, base_ref? : String, worktrees_root? : String, concurrency? : Int, model? : String?, draft? : Bool, cleanup? : Bool) -> Self
+pub impl Show for PackageReviewOptions
+
+pub struct PreparedReview {
+  // private fields
+}
+pub fn PreparedReview::package_count(Self) -> Int
+pub fn PreparedReview::workflow(Self) -> @workflow.Workflow
+
+// Type aliases
+
+// Traits
+

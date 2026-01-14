@@ -1,0 +1,11 @@
+{
+  "import": [
+    "moonbitlang/async/process",
+    "moonbitlang/async/stdio",
+    "moonbitlang/x/fs",
+    "moonbitlang/x/path",
+    "moonbitlang/x/sys",
+    "peter-jerry-ye/codex",
+    "codex_worfkow/workflow"
+  ]
+}
