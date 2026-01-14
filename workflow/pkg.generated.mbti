@@ -1,0 +1,56 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "codex_worfkow/workflow"
+
+import(
+  "peter-jerry-ye/codex"
+)
+
+// Values
+pub fn describe_workflow(Workflow) -> String
+
+pub async fn run_workflow(Workflow, @codex.Codex, RunOptions) -> Map[String, String]
+
+pub fn sample_names() -> Array[String]
+
+pub fn sample_workflow(String) -> Workflow?
+
+pub fn sample_workflows() -> Array[(String, Workflow)]
+
+// Errors
+
+// Types and methods
+pub struct AgentSpec {
+  name : String
+  role : String
+  model : String?
+  sandbox_mode : @codex.SandboxMode?
+  working_directory : String?
+}
+pub fn AgentSpec::label(Self) -> String
+pub fn AgentSpec::new(String, String, model? : String, sandbox_mode? : @codex.SandboxMode, working_directory? : String) -> Self
+
+pub struct RunOptions {
+  concurrency : Int
+  working_directory : String
+  default_sandbox : @codex.SandboxMode
+  default_model : String?
+}
+pub fn RunOptions::new(String, Int, default_sandbox? : @codex.SandboxMode, default_model? : String) -> Self
+
+pub struct TaskNode {
+  id : String
+  title : String
+  deps : Array[String]
+  agent : String
+  prompt : String
+}
+
+pub struct Workflow {
+  agents : Array[AgentSpec]
+  nodes : Array[TaskNode]
+}
+
+// Type aliases
+
+// Traits
+
