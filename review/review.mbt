@@ -35,22 +35,15 @@
 
 ///|
 /// Configuration options for the package review process.
-pub struct PackageReviewOptions {
-  /// Path to the Git repository (supports `~` expansion)
+struct PackageReviewOptions {
   repo_path : String
-  /// Directory to store worktrees (default: `<repo>.worktrees`)
   worktrees_root : String
-  /// Base Git ref for branching (e.g., "origin/main")
   base_ref : String
-  /// Maximum number of concurrent review agents
   concurrency : Int
-  /// Optional AI model name override
   model : String?
-  /// If true, creates draft PRs; otherwise ready-for-review
   draft : Bool
-  /// If true, removes worktrees that have no changes
   cleanup : Bool
-} derive(Show)
+}
 
 ///|
 /// Represents a single package review task with its associated Git branch and worktree.
@@ -70,23 +63,18 @@ priv struct PackageReview {
 ///|
 /// Result of the prepare phase, containing ready reviews and the workflow.
 /// Use `workflow()` to access the workflow DAG for preview/inspection.
-pub struct PreparedReview {
-  priv reviews : Array[PackageReview]
-  priv workflow : @workflow.Workflow
-  priv repo : String
-  priv base_ref : String
+struct PreparedReview {
+  reviews : Array[PackageReview]
+  workflow : @workflow.Workflow
+  repo : String
+  base_ref : String
+  options : PackageReviewOptions
 }
 
 ///|
 /// Returns the workflow DAG for inspection (e.g., rendering with `render_workflow_dag`).
 pub fn PreparedReview::workflow(self : PreparedReview) -> @workflow.Workflow {
   self.workflow
-}
-
-///|
-/// Returns the number of packages that will be reviewed.
-pub fn PreparedReview::package_count(self : PreparedReview) -> Int {
-  self.reviews.length()
 }
 
 ///|
@@ -139,16 +127,14 @@ pub async fn prepare_package_reviews(
     return None
   }
   let workflow = build_review_workflow(ready, options.model, repo, base)
-  Some(PreparedReview::{ reviews: ready, workflow, repo, base_ref: base })
+  Some(PreparedReview::{ reviews: ready, workflow, repo, base_ref: base, options })
 }
 
 ///|
 /// Executes a prepared review workflow.
 /// Call `prepare_package_reviews` first to get the `PreparedReview`.
-pub async fn execute_prepared_review(
-  prepared : PreparedReview,
-  options : PackageReviewOptions,
-) -> Unit {
+pub async fn execute_prepared_review(prepared : PreparedReview) -> Unit {
+  let options = prepared.options
   let codex = @codex.Codex::new()
   let run_options = @workflow.RunOptions::new(
     prepared.repo,
@@ -220,7 +206,7 @@ pub async fn execute_prepared_review(
 /// 5. Creates draft PRs for packages with changes
 pub async fn run_package_reviews(options : PackageReviewOptions) -> Unit {
   match prepare_package_reviews(options) {
-    Some(prepared) => execute_prepared_review(prepared, options)
+    Some(prepared) => execute_prepared_review(prepared)
     None => ()
   }
 }
