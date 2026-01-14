@@ -7,7 +7,7 @@
 /// ## Architecture
 ///
 /// 1. **Prepare**: `prepare_package_reviews()` discovers packages and builds workflow
-/// 2. **Execute**: Caller runs workflow using `@workflow.run_workflow()`
+/// 2. **Execute**: Caller runs workflow using `@dag.run_workflow()`
 /// 3. **Process**: `process_review_results()` commits changes and creates PRs
 ///
 /// ## Usage
@@ -17,10 +17,10 @@
 /// match @review.prepare_package_reviews(options) {
 ///   Some(prepared) => {
 ///     // Preview DAG
-///     println(@workflow.render_workflow_dag(prepared.workflow()))
+///     println(@dag.render_workflow_dag(prepared.workflow()))
 ///     
 ///     // Run workflow
-///     let results = @workflow.run_workflow(prepared.workflow(), codex, run_options)
+///     let results = @dag.run_workflow(prepared.workflow(), codex, run_options)
 ///     
 ///     // Create PRs from results
 ///     @review.process_review_results(prepared, results)
@@ -54,7 +54,7 @@ priv struct PackageReview {
 /// Result of the prepare phase, containing ready reviews and the workflow.
 pub struct PreparedReview {
   priv reviews : Array[PackageReview]
-  priv workflow : @workflow.Workflow
+  priv workflow : @dag.Workflow
   priv repo : String
   priv base_ref : String
   priv options : PackageReviewOptions
@@ -62,7 +62,7 @@ pub struct PreparedReview {
 
 ///|
 /// Returns the workflow DAG for execution or inspection.
-pub fn PreparedReview::workflow(self : PreparedReview) -> @workflow.Workflow {
+pub fn PreparedReview::workflow(self : PreparedReview) -> @dag.Workflow {
   self.workflow
 }
 
@@ -132,7 +132,7 @@ pub async fn prepare_package_reviews(
 
 ///|
 /// Processes workflow results: commits changes, pushes branches, and creates PRs.
-/// Call this after running the workflow with `@workflow.run_workflow()`.
+/// Call this after running the workflow with `@dag.run_workflow()`.
 pub async fn process_review_results(
   prepared : PreparedReview,
   results : Map[String, String],
@@ -395,15 +395,15 @@ fn build_review_workflow(
   model : String?,
   repo : String,
   base_ref : String,
-) -> @workflow.Workflow {
-  let agents : Array[@workflow.AgentSpec] = []
-  let nodes : Array[@workflow.TaskNode] = []
+) -> @dag.Workflow {
+  let agents : Array[@dag.AgentSpec] = []
+  let nodes : Array[@dag.TaskNode] = []
   for review in reviews {
     let role =
       "Review package \{review.package_dir} with minimal fixes and tests."
     let agent = match model {
       Some(value) =>
-        @workflow.AgentSpec::new(
+        @dag.AgentSpec::new(
           review.agent_name,
           role,
           model=value,
@@ -411,7 +411,7 @@ fn build_review_workflow(
           working_directory=review.worktree_path,
         )
       None =>
-        @workflow.AgentSpec::new(
+        @dag.AgentSpec::new(
           review.agent_name,
           role,
           sandbox_mode=@codex.SandboxMode::WorkspaceWrite,
@@ -421,7 +421,7 @@ fn build_review_workflow(
     agents.push(agent)
     let deps : Array[String] = []
     nodes.push(
-      @workflow.TaskNode::new(
+      @dag.TaskNode::new(
         review.task_id,
         "Review \{review.package_dir}",
         deps,
@@ -430,7 +430,7 @@ fn build_review_workflow(
       ),
     )
   }
-  @workflow.Workflow::new(agents, nodes)
+  @dag.Workflow::new(agents, nodes)
 }
 
 ///|

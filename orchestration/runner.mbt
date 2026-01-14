@@ -1,6 +1,6 @@
 ///|
 priv struct Graph {
-  nodes : Map[String, TaskNode]
+  nodes : Map[String, @dag.TaskNode]
   dependents : Map[String, Array[String]]
   remaining : Map[String, Int]
 }
@@ -8,9 +8,9 @@ priv struct Graph {
 ///|
 /// Execute a workflow DAG using the configured agents.
 pub async fn run_workflow(
-  workflow : Workflow,
+  workflow : @dag.Workflow,
   codex : @codex.Codex,
-  options : RunOptions,
+  options : @dag.RunOptions,
 ) -> Map[String, String] {
   if workflow.nodes.is_empty() {
     return {}
@@ -85,11 +85,11 @@ pub async fn run_workflow(
 
 ///|
 async fn run_node(
-  node : TaskNode,
-  agent : AgentSpec,
+  node : @dag.TaskNode,
+  agent : @dag.AgentSpec,
   results : Map[String, String],
   codex : @codex.Codex,
-  options : RunOptions,
+  options : @dag.RunOptions,
 ) -> String {
   let work_dir = agent.working_directory.unwrap_or(options.working_directory)
   let sandbox_mode = agent.sandbox_mode.unwrap_or(options.default_sandbox)
@@ -111,8 +111,8 @@ async fn run_node(
 
 ///|
 fn build_prompt(
-  node : TaskNode,
-  agent : AgentSpec,
+  node : @dag.TaskNode,
+  agent : @dag.AgentSpec,
   results : Map[String, String],
 ) -> String {
   let mut prompt =
@@ -135,8 +135,8 @@ fn build_prompt(
 }
 
 ///|
-fn build_agent_map(workflow : Workflow) -> Map[String, AgentSpec] raise {
-  let agent_map : Map[String, AgentSpec] = {}
+fn build_agent_map(workflow : @dag.Workflow) -> Map[String, @dag.AgentSpec] raise {
+  let agent_map : Map[String, @dag.AgentSpec] = {}
   for agent in workflow.agents {
     if agent_map.get(agent.name) is Some(_) {
       @error.fail("Duplicate agent name: \{agent.name}")
@@ -147,8 +147,8 @@ fn build_agent_map(workflow : Workflow) -> Map[String, AgentSpec] raise {
 }
 
 ///|
-fn build_graph(workflow : Workflow) -> Graph raise {
-  let nodes : Map[String, TaskNode] = {}
+fn build_graph(workflow : @dag.Workflow) -> Graph raise {
+  let nodes : Map[String, @dag.TaskNode] = {}
   let dependents : Map[String, Array[String]] = {}
   let remaining : Map[String, Int] = {}
   for node in workflow.nodes {
@@ -173,9 +173,9 @@ fn build_graph(workflow : Workflow) -> Graph raise {
 
 ///|
 fn require_node(
-  nodes : Map[String, TaskNode],
+  nodes : Map[String, @dag.TaskNode],
   node_id : String,
-) -> TaskNode raise {
+) -> @dag.TaskNode raise {
   match nodes.get(node_id) {
     Some(node) => node
     None => @error.fail("Missing node for id: \{node_id}")
@@ -184,9 +184,9 @@ fn require_node(
 
 ///|
 fn require_agent(
-  agents : Map[String, AgentSpec],
+  agents : Map[String, @dag.AgentSpec],
   name : String,
-) -> AgentSpec raise {
+) -> @dag.AgentSpec raise {
   match agents.get(name) {
     Some(agent) => agent
     None => @error.fail("Missing agent for name: \{name}")

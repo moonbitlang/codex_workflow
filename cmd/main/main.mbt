@@ -42,7 +42,7 @@ async fn main {
     return
   }
   if args.flags.get("list") is Some(true) {
-    let names = @workflow.sample_names().join(", ")
+    let names = @orchestration.sample_names().join(", ")
     @stdio.stdout.write("Samples: \{names}\n")
     return
   }
@@ -72,12 +72,12 @@ async fn main {
       Some(prepared) => {
         if wants_plan {
           @stdio.stdout.write("Plan for package reviews:\n")
-          @stdio.stdout.write(@workflow.render_workflow_plan(prepared.workflow()))
+          @stdio.stdout.write(@dag.render_workflow_plan(prepared.workflow()))
           @stdio.stdout.write("\n")
         }
         if wants_dag {
           @stdio.stdout.write("DAG for package reviews:\n")
-          @stdio.stdout.write(@workflow.render_workflow_dag(prepared.workflow()))
+          @stdio.stdout.write(@dag.render_workflow_dag(prepared.workflow()))
           @stdio.stdout.write("\n")
         }
         if wants_dag || wants_plan {
@@ -85,7 +85,7 @@ async fn main {
         }
         // Run the workflow
         let codex = @codex.Codex::new()
-        let run_options = @workflow.RunOptions::new(
+        let run_options = @dag.RunOptions::new(
           prepared.repo_path(),
           concurrency,
           default_sandbox=@codex.SandboxMode::WorkspaceWrite,
@@ -94,7 +94,7 @@ async fn main {
         @stdio.stdout.write(
           "Reviewing packages with concurrency \{concurrency}...\n",
         )
-        let results = @workflow.run_workflow(prepared.workflow(), codex, run_options) catch {
+        let results = @orchestration.run_workflow(prepared.workflow(), codex, run_options) catch {
           e => {
             @stdio.stderr.write("Package review failed: \{e}\n")
             return
@@ -111,22 +111,22 @@ async fn main {
   let wants_dag = args.flags.get("dag") is Some(true)
   let wants_plan = args.flags.get("plan") is Some(true)
   if wants_dag || wants_plan {
-    match @workflow.sample_workflow(sample) {
+    match @orchestration.sample_workflow(sample) {
       Some(workflow) => {
         if wants_plan {
           @stdio.stdout.write("Plan for '\{sample}':\n")
-          @stdio.stdout.write(@workflow.render_workflow_plan(workflow))
+          @stdio.stdout.write(@dag.render_workflow_plan(workflow))
           @stdio.stdout.write("\n")
         }
         if wants_dag {
           @stdio.stdout.write("DAG for '\{sample}':\n")
-          @stdio.stdout.write(@workflow.render_workflow_dag(workflow))
+          @stdio.stdout.write(@dag.render_workflow_dag(workflow))
           @stdio.stdout.write("\n")
         }
         return
       }
       None => {
-        let names = @workflow.sample_names().join(", ")
+        let names = @orchestration.sample_names().join(", ")
         @stdio.stderr.write("Unknown sample '\{sample}'. Available: \{names}\n")
         @stdio.stderr.write(help_message())
         return
@@ -138,21 +138,21 @@ async fn main {
     2,
   )
   let workdir = args.options.get("workdir").unwrap_or(".")
-  let options = @workflow.RunOptions::new(
+  let options = @dag.RunOptions::new(
     workdir,
     concurrency,
     default_sandbox=@codex.SandboxMode::ReadOnly,
     default_model?=model,
   )
   let codex = @codex.Codex::new()
-  match @workflow.sample_workflow(sample) {
+  match @orchestration.sample_workflow(sample) {
     Some(workflow) => {
       @stdio.stdout.write("Running sample '\{sample}'\n\n")
-      @stdio.stdout.write(@workflow.describe_workflow(workflow))
+      @stdio.stdout.write(@dag.describe_workflow(workflow))
       @stdio.stdout.write(
         "\nRunning with concurrency \{options.concurrency} in \{options.working_directory}\n\n",
       )
-      let results = @workflow.run_workflow(workflow, codex, options) catch {
+      let results = @orchestration.run_workflow(workflow, codex, options) catch {
         e => {
           @stdio.stderr.write("Workflow failed: \{e}\n")
           return
@@ -165,7 +165,7 @@ async fn main {
       }
     }
     None => {
-      let names = @workflow.sample_names().join(", ")
+      let names = @orchestration.sample_names().join(", ")
       @stdio.stderr.write("Unknown sample '\{sample}'. Available: \{names}\n")
       @stdio.stderr.write(help_message())
     }
