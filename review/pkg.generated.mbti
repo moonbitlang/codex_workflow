@@ -2,7 +2,7 @@
 package "codex_worfkow/review"
 
 import(
-  "codex_worfkow/workflow"
+  "codex_worfkow/dag"
 )
 
 // Values
@@ -23,7 +23,7 @@ pub struct PreparedReview {
 }
 pub fn PreparedReview::model(Self) -> String?
 pub fn PreparedReview::repo_path(Self) -> String
-pub fn PreparedReview::workflow(Self) -> @workflow.Workflow
+pub fn PreparedReview::workflow(Self) -> @dag.Workflow
 
 // Type aliases
 

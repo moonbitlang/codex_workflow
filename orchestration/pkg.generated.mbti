@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "codex_worfkow/orchestration"
+
+import(
+  "codex_worfkow/dag"
+  "peter-jerry-ye/codex"
+)
+
+// Values
+pub async fn run_workflow(@dag.Workflow, @codex.Codex, @dag.RunOptions) -> Map[String, String]
+
+pub fn sample_names() -> Array[String]
+
+pub fn sample_workflow(String) -> @dag.Workflow?
+
+pub fn sample_workflows() -> Array[(String, @dag.Workflow)]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

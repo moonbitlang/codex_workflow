@@ -4,9 +4,7 @@
   "deps": {
     "moonbitlang/async": "0.16.0",
     "moonbitlang/x": "0.4.38",
-    "peter-jerry-ye/codex": {
-      "path": "../codex-sdk"
-    }
+    "peter-jerry-ye/codex": "0.79.0"
   },
   "readme": "README.mbt.md",
   "repository": "",
