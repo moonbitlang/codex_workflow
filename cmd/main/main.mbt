@@ -62,32 +62,49 @@ async fn main {
       repo,
       base_ref=base,
       worktrees_root=worktrees,
-      concurrency=concurrency,
       model=model,
       draft=draft,
       cleanup=cleanup,
     )
     let wants_dag = args.flags.get("dag") is Some(true)
     let wants_plan = args.flags.get("plan") is Some(true)
-    if wants_dag || wants_plan {
-      match @review.prepare_package_reviews(options) {
-        Some(prepared) => {
-          if wants_plan {
-            @stdio.stdout.write("Plan for package reviews:\n")
-            @stdio.stdout.write(@workflow.render_workflow_plan(prepared.workflow()))
-            @stdio.stdout.write("\n")
-          }
-          if wants_dag {
-            @stdio.stdout.write("DAG for package reviews:\n")
-            @stdio.stdout.write(@workflow.render_workflow_dag(prepared.workflow()))
-            @stdio.stdout.write("\n")
+    match @review.prepare_package_reviews(options) {
+      Some(prepared) => {
+        if wants_plan {
+          @stdio.stdout.write("Plan for package reviews:\n")
+          @stdio.stdout.write(@workflow.render_workflow_plan(prepared.workflow()))
+          @stdio.stdout.write("\n")
+        }
+        if wants_dag {
+          @stdio.stdout.write("DAG for package reviews:\n")
+          @stdio.stdout.write(@workflow.render_workflow_dag(prepared.workflow()))
+          @stdio.stdout.write("\n")
+        }
+        if wants_dag || wants_plan {
+          return
+        }
+        // Run the workflow
+        let codex = @codex.Codex::new()
+        let run_options = @workflow.RunOptions::new(
+          prepared.repo_path(),
+          concurrency,
+          default_sandbox=@codex.SandboxMode::WorkspaceWrite,
+          default_model?=prepared.model(),
+        )
+        @stdio.stdout.write(
+          "Reviewing packages with concurrency \{concurrency}...\n",
+        )
+        let results = @workflow.run_workflow(prepared.workflow(), codex, run_options) catch {
+          e => {
+            @stdio.stderr.write("Package review failed: \{e}\n")
+            return
           }
         }
-        None => @stdio.stderr.write("Failed to prepare package reviews.\n")
+        // Process results (commit, push, create PRs)
+        @review.process_review_results(prepared, results)
       }
-      return
+      None => @stdio.stderr.write("Failed to prepare package reviews.\n")
     }
-    @review.run_package_reviews(options)
     return
   }
   let sample = args.options.get("sample").unwrap_or("kickoff")

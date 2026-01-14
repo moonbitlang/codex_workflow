@@ -6,21 +6,23 @@ import(
 )
 
 // Values
-pub async fn execute_prepared_review(PreparedReview) -> Unit
-
 pub async fn prepare_package_reviews(PackageReviewOptions) -> PreparedReview?
 
-pub async fn run_package_reviews(PackageReviewOptions) -> Unit
+pub async fn process_review_results(PreparedReview, Map[String, String]) -> Unit
 
 // Errors
 
 // Types and methods
-type PackageReviewOptions
-pub fn PackageReviewOptions::new(String, base_ref? : String, worktrees_root? : String, concurrency? : Int, model? : String?, draft? : Bool, cleanup? : Bool) -> Self
+pub struct PackageReviewOptions {
+  // private fields
+}
+pub fn PackageReviewOptions::new(String, base_ref? : String, worktrees_root? : String, model? : String?, draft? : Bool, cleanup? : Bool) -> Self
 
 pub struct PreparedReview {
   // private fields
 }
+pub fn PreparedReview::model(Self) -> String?
+pub fn PreparedReview::repo_path(Self) -> String
 pub fn PreparedReview::workflow(Self) -> @workflow.Workflow
 
 // Type aliases

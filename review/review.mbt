@@ -1,80 +1,81 @@
 /// # Package Review Module
 ///
-/// This module provides automated, parallel code review functionality for MoonBit packages
-/// using AI-powered agents (Codex). It creates isolated Git worktrees for each package,
-/// runs formatting/linting/testing, applies minimal fixes, and opens draft Pull Requests.
+/// This module prepares review workflows for MoonBit packages. It discovers packages,
+/// creates isolated Git worktrees, and builds a workflow DAG. The actual execution
+/// is left to the caller using the workflow engine.
 ///
 /// ## Architecture
 ///
-/// The review process follows these steps:
-/// 1. **Discovery**: Scans the repository for MoonBit packages (`moon.pkg` or `moon.pkg.json`)
-/// 2. **Worktree Setup**: Creates isolated Git worktrees for each package (one branch per package)
-/// 3. **Parallel Review**: Spawns AI agents to review each package concurrently
-/// 4. **PR Creation**: Commits changes, pushes branches, and opens draft PRs via `gh` CLI
-///
-/// ## Prerequisites
-///
-/// - Git repository with MoonBit packages
-/// - `gh` CLI installed and authenticated (for PR creation)
-/// - `rg` (ripgrep) or `find` available for package discovery
-/// - MoonBit toolchain (`moon` command)
+/// 1. **Prepare**: `prepare_package_reviews()` discovers packages and builds workflow
+/// 2. **Execute**: Caller runs workflow using `@workflow.run_workflow()`
+/// 3. **Process**: `process_review_results()` commits changes and creates PRs
 ///
 /// ## Usage
 ///
 /// ```moonbit
-/// @review.run_package_reviews(
-///   repo_path="~/my-moonbit-repo",
-///   worktrees_root="",
-///   base_ref="origin/main",
-///   concurrency=4,
-///   model=None,
-///   draft=true,
-///   cleanup=false,
-/// )
+/// let options = @review.PackageReviewOptions::new("~/my-repo")
+/// match @review.prepare_package_reviews(options) {
+///   Some(prepared) => {
+///     // Preview DAG
+///     println(@workflow.render_workflow_dag(prepared.workflow()))
+///     
+///     // Run workflow
+///     let results = @workflow.run_workflow(prepared.workflow(), codex, run_options)
+///     
+///     // Create PRs from results
+///     @review.process_review_results(prepared, results)
+///   }
+///   None => ()
+/// }
 /// ```
 
 ///|
 /// Configuration options for the package review process.
-struct PackageReviewOptions {
-  repo_path : String
-  worktrees_root : String
-  base_ref : String
-  concurrency : Int
-  model : String?
-  draft : Bool
-  cleanup : Bool
+pub struct PackageReviewOptions {
+  priv repo_path : String
+  priv worktrees_root : String
+  priv base_ref : String
+  priv model : String?
+  priv draft : Bool
+  priv cleanup : Bool
 }
 
 ///|
 /// Represents a single package review task with its associated Git branch and worktree.
 priv struct PackageReview {
-  /// Relative path to the package directory (e.g., "workflow" or "." for root)
   package_dir : String
-  /// Git branch name for this review (e.g., "review/workflow")
   branch : String
-  /// Absolute path to the Git worktree for isolated changes
   worktree_path : String
-  /// Unique name for the AI agent handling this package
   agent_name : String
-  /// Unique task identifier in the workflow DAG
   task_id : String
 }
 
 ///|
 /// Result of the prepare phase, containing ready reviews and the workflow.
-/// Use `workflow()` to access the workflow DAG for preview/inspection.
-struct PreparedReview {
-  reviews : Array[PackageReview]
-  workflow : @workflow.Workflow
-  repo : String
-  base_ref : String
-  options : PackageReviewOptions
+pub struct PreparedReview {
+  priv reviews : Array[PackageReview]
+  priv workflow : @workflow.Workflow
+  priv repo : String
+  priv base_ref : String
+  priv options : PackageReviewOptions
 }
 
 ///|
-/// Returns the workflow DAG for inspection (e.g., rendering with `render_workflow_dag`).
+/// Returns the workflow DAG for execution or inspection.
 pub fn PreparedReview::workflow(self : PreparedReview) -> @workflow.Workflow {
   self.workflow
+}
+
+///|
+/// Returns the normalized repository path.
+pub fn PreparedReview::repo_path(self : PreparedReview) -> String {
+  self.repo
+}
+
+///|
+/// Returns the model override if specified.
+pub fn PreparedReview::model(self : PreparedReview) -> String? {
+  self.options.model
 }
 
 ///|
@@ -83,12 +84,11 @@ pub fn PackageReviewOptions::new(
   repo_path : String,
   base_ref~ : String = "origin/main",
   worktrees_root~ : String = "",
-  concurrency~ : Int = 4,
   model~ : String? = None,
   draft~ : Bool = true,
   cleanup~ : Bool = false,
 ) -> PackageReviewOptions {
-  { repo_path, worktrees_root, base_ref, concurrency, model, draft, cleanup }
+  { repo_path, worktrees_root, base_ref, model, draft, cleanup }
 }
 
 ///|
@@ -131,26 +131,13 @@ pub async fn prepare_package_reviews(
 }
 
 ///|
-/// Executes a prepared review workflow.
-/// Call `prepare_package_reviews` first to get the `PreparedReview`.
-pub async fn execute_prepared_review(prepared : PreparedReview) -> Unit {
+/// Processes workflow results: commits changes, pushes branches, and creates PRs.
+/// Call this after running the workflow with `@workflow.run_workflow()`.
+pub async fn process_review_results(
+  prepared : PreparedReview,
+  results : Map[String, String],
+) -> Unit {
   let options = prepared.options
-  let codex = @codex.Codex::new()
-  let run_options = @workflow.RunOptions::new(
-    prepared.repo,
-    options.concurrency,
-    default_sandbox=@codex.SandboxMode::WorkspaceWrite,
-    default_model?=options.model,
-  )
-  @stdio.stdout.write(
-    "Reviewing \{prepared.reviews.length()} packages with concurrency \{run_options.concurrency}...\n",
-  )
-  let results = @workflow.run_workflow(prepared.workflow, codex, run_options) catch {
-    e => {
-      @stdio.stderr.write("Package review failed: \{e}\n")
-      return
-    }
-  }
   let base_branch = pr_base_branch(prepared.base_ref)
   for review in prepared.reviews {
     let output = results.get(review.task_id).unwrap_or("")
@@ -192,22 +179,6 @@ pub async fn execute_prepared_review(prepared : PreparedReview) -> Unit {
     @stdio.stdout.write(
       "Package \{review.package_dir}: draft PR created on \{review.branch}.\n",
     )
-  }
-}
-
-///|
-/// Main entry point for parallel package reviews.
-///
-/// This function orchestrates the entire review process:
-/// 1. Validates the repository and discovers MoonBit packages
-/// 2. Creates Git worktrees for isolated package reviews
-/// 3. Builds a workflow DAG with one agent per package
-/// 4. Executes reviews in parallel (respecting concurrency limit)
-/// 5. Creates draft PRs for packages with changes
-pub async fn run_package_reviews(options : PackageReviewOptions) -> Unit {
-  match prepare_package_reviews(options) {
-    Some(prepared) => execute_prepared_review(prepared)
-    None => ()
   }
 }
 
