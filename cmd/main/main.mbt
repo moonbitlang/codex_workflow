@@ -2,12 +2,13 @@
 async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
-    flags=["help", "list", "dag"],
+    flags=["help", "list", "dag", "plan"],
     options=["sample", "concurrency", "workdir", "model"],
     aliases={
       "h": "help",
       "l": "list",
       "g": "dag",
+      "p": "plan",
       "s": "sample",
       "c": "concurrency",
     },
@@ -28,12 +29,21 @@ async fn main {
     return
   }
   let sample = args.options.get("sample").unwrap_or("kickoff")
-  if args.flags.get("dag") is Some(true) {
+  let wants_dag = args.flags.get("dag") is Some(true)
+  let wants_plan = args.flags.get("plan") is Some(true)
+  if wants_dag || wants_plan {
     match @workflow.sample_workflow(sample) {
       Some(workflow) => {
-        @stdio.stdout.write("DAG for '\{sample}':\n")
-        @stdio.stdout.write(@workflow.render_workflow_dag(workflow))
-        @stdio.stdout.write("\n")
+        if wants_plan {
+          @stdio.stdout.write("Plan for '\{sample}':\n")
+          @stdio.stdout.write(@workflow.render_workflow_plan(workflow))
+          @stdio.stdout.write("\n")
+        }
+        if wants_dag {
+          @stdio.stdout.write("DAG for '\{sample}':\n")
+          @stdio.stdout.write(@workflow.render_workflow_dag(workflow))
+          @stdio.stdout.write("\n")
+        }
         return
       }
       None => {
@@ -102,6 +112,7 @@ fn help_message() -> String {
     #|  -s, --sample <name>       Sample workflow name (default: kickoff)
     #|  -c, --concurrency <num>   Max concurrent tasks (default: 2)
     #|  -g, --dag                 Print the workflow DAG as ASCII and exit
+    #|  -p, --plan                Print topological execution waves and exit
     #|  --workdir <path>          Working directory for agents (default: .)
     #|  --model <name>            Optional model override
     #|  -l, --list                List built-in samples

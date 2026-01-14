@@ -143,6 +143,9 @@ moon run cmd/main -- --sample kickoff
 # View the DAG structure without running
 moon run cmd/main -- --sample kickoff --dag
 
+# View the topological execution plan without running
+moon run cmd/main -- --sample kickoff --plan
+
 # Run with custom concurrency
 moon run cmd/main -- --sample kickoff --concurrency 4
 
@@ -160,6 +163,7 @@ moon run cmd/main -- --sample kickoff --model o3
 | `--sample <name>` | `-s` | Sample workflow name | `kickoff` |
 | `--concurrency <num>` | `-c` | Max concurrent tasks | `2` |
 | `--dag` | `-g` | Print DAG as ASCII and exit | — |
+| `--plan` | `-p` | Print topological execution waves and exit | — |
 | `--workdir <path>` | — | Working directory for agents | `.` |
 | `--model <name>` | — | Model override for all agents | — |
 | `--list` | `-l` | List built-in samples | — |

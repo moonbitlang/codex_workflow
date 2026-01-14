@@ -225,6 +225,67 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
 }
 
 ///|
+/// Render the workflow as topological execution waves.
+pub fn render_workflow_plan(workflow : Workflow) -> String {
+  if workflow.nodes.is_empty() {
+    return "(no workflow nodes)"
+  }
+  let node_map : Map[String, TaskNode] = {}
+  let dependents : Map[String, Array[String]] = {}
+  let remaining : Map[String, Int] = {}
+  for node in workflow.nodes {
+    if node_map.get(node.id) is Some(_) {
+      return "ERROR: Duplicate node id: \{node.id}"
+    }
+    node_map[node.id] = node
+    remaining[node.id] = node.deps.length()
+  }
+  for node in workflow.nodes {
+    for dep in node.deps {
+      if node_map.get(dep) is None {
+        return "ERROR: Unknown dependency: \{dep} (required by \{node.id})"
+      }
+      let list = dependents.get(dep).unwrap_or([])
+      list.push(node.id)
+      dependents[dep] = list
+    }
+  }
+  let mut ready : Array[String] = []
+  for node in workflow.nodes {
+    if remaining.get(node.id).unwrap_or(0) == 0 {
+      ready.push(node.id)
+    }
+  }
+  let lines : Array[String] = []
+  let total = workflow.nodes.length()
+  let mut completed = 0
+  let mut wave_index = 1
+  while !ready.is_empty() {
+    let wave = ready
+    let wave_label = wave.join(", ")
+    lines.push("Wave \{wave_index}: \{wave_label}")
+    wave_index = wave_index + 1
+    let next_ready : Array[String] = []
+    for node_id in wave {
+      completed = completed + 1
+      let children = dependents.get(node_id).unwrap_or([])
+      for child in children {
+        let next = remaining.get(child).unwrap_or(0) - 1
+        remaining[child] = next
+        if next == 0 {
+          next_ready.push(child)
+        }
+      }
+    }
+    ready = next_ready
+  }
+  if completed != total {
+    return "ERROR: Workflow did not complete (\{completed}/\{total}). Check for cycles or missing deps."
+  }
+  lines.join("\n")
+}
+
+///|
 priv struct Canvas {
   width : Int
   height : Int
