@@ -154,6 +154,9 @@ moon run cmd/main -- --sample review --workdir /path/to/repo
 
 # Use a specific model
 moon run cmd/main -- --sample kickoff --model o3
+
+# Review MoonBit packages in parallel
+moon run cmd/main -- --review-packages --repo ~/git/core/core.git --base origin/main
 ```
 
 ### CLI Options
@@ -164,8 +167,15 @@ moon run cmd/main -- --sample kickoff --model o3
 | `--concurrency <num>` | `-c` | Max concurrent tasks | `2` |
 | `--dag` | `-g` | Print DAG as ASCII and exit | — |
 | `--plan` | `-p` | Print topological execution waves and exit | — |
+| `--review-packages` | `-r` | Review MoonBit packages in parallel | — |
 | `--workdir <path>` | — | Working directory for agents | `.` |
 | `--model <name>` | — | Model override for all agents | — |
+| `--repo <path>` | — | Repo path for package reviews | `.` |
+| `--worktrees <path>` | — | Worktree root for package reviews | `<repo>.worktrees` |
+| `--base <ref>` | — | Base ref for review branches | `origin/main` |
+| `--draft` | — | Create draft PRs | — |
+| `--no-draft` | — | Create ready-for-review PRs | — |
+| `--cleanup` | — | Remove worktrees with no changes | — |
 | `--list` | `-l` | List built-in samples | — |
 | `--help` | `-h` | Show help | — |
 

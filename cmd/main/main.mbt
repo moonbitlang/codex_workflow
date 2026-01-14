@@ -2,13 +2,31 @@
 async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
-    flags=["help", "list", "dag", "plan"],
-    options=["sample", "concurrency", "workdir", "model"],
+    flags=[
+      "help",
+      "list",
+      "dag",
+      "plan",
+      "review-packages",
+      "draft",
+      "no-draft",
+      "cleanup",
+    ],
+    options=[
+      "sample",
+      "concurrency",
+      "workdir",
+      "model",
+      "repo",
+      "worktrees",
+      "base",
+    ],
     aliases={
       "h": "help",
       "l": "list",
       "g": "dag",
       "p": "plan",
+      "r": "review-packages",
       "s": "sample",
       "c": "concurrency",
     },
@@ -26,6 +44,29 @@ async fn main {
   if args.flags.get("list") is Some(true) {
     let names = @workflow.sample_names().join(", ")
     @stdio.stdout.write("Samples: \{names}\n")
+    return
+  }
+  let wants_review = args.flags.get("review-packages") is Some(true)
+  let model = args.options.get("model")
+  if wants_review {
+    let repo = args.options.get("repo").unwrap_or(".")
+    let worktrees = args.options.get("worktrees").unwrap_or("")
+    let base = args.options.get("base").unwrap_or("origin/main")
+    let concurrency = parse_concurrency(
+      args.options.get("concurrency"),
+      4,
+    )
+    let draft = !(args.flags.get("no-draft") is Some(true))
+    let cleanup = args.flags.get("cleanup") is Some(true)
+    run_package_reviews(
+      repo,
+      worktrees,
+      base,
+      concurrency,
+      model,
+      draft,
+      cleanup,
+    )
     return
   }
   let sample = args.options.get("sample").unwrap_or("kickoff")
@@ -54,20 +95,11 @@ async fn main {
       }
     }
   }
-  let concurrency = match args.options.get("concurrency") {
-    Some(text) =>
-      @strconv.parse_int(text) catch {
-        _ => {
-          @stdio.stderr.write(
-            "warning: invalid concurrency '\{text}', using 2\n",
-          )
-          2
-        }
-      }
-    None => 2
-  }
+  let concurrency = parse_concurrency(
+    args.options.get("concurrency"),
+    2,
+  )
   let workdir = args.options.get("workdir").unwrap_or(".")
-  let model = args.options.get("model")
   let options = @workflow.RunOptions::new(
     workdir,
     concurrency,
@@ -113,10 +145,33 @@ fn help_message() -> String {
     #|  -c, --concurrency <num>   Max concurrent tasks (default: 2)
     #|  -g, --dag                 Print the workflow DAG as ASCII and exit
     #|  -p, --plan                Print topological execution waves and exit
+    #|  -r, --review-packages     Review MoonBit packages in parallel
     #|  --workdir <path>          Working directory for agents (default: .)
     #|  --model <name>            Optional model override
+    #|  --repo <path>             Repo path for package reviews (default: .)
+    #|  --worktrees <path>        Worktree root (default: <repo>.worktrees)
+    #|  --base <ref>              Base ref for reviews (default: origin/main)
+    #|  --draft                   Create draft PRs (default for reviews)
+    #|  --no-draft                Create ready-for-review PRs
+    #|  --cleanup                 Remove worktrees with no changes
     #|  -l, --list                List built-in samples
     #|  -h, --help                Show help
     #|
   message
+}
+
+///|
+async fn parse_concurrency(value : String?, default_value : Int) -> Int {
+  match value {
+    Some(text) =>
+      @strconv.parse_int(text) catch {
+        _ => {
+          @stdio.stderr.write(
+            "warning: invalid concurrency '\{text}', using \{default_value}\n",
+          )
+          default_value
+        }
+      }
+    None => default_value
+  }
 }

@@ -9,10 +9,29 @@ pub struct TaskNode {
 }
 
 ///|
+pub fn TaskNode::new(
+  id : String,
+  title : String,
+  deps : Array[String],
+  agent : String,
+  prompt : String,
+) -> TaskNode {
+  TaskNode::{ id, title, deps, agent, prompt }
+}
+
+///|
 /// A workflow definition with agents and nodes.
 pub struct Workflow {
   agents : Array[AgentSpec]
   nodes : Array[TaskNode]
+}
+
+///|
+pub fn Workflow::new(
+  agents : Array[AgentSpec],
+  nodes : Array[TaskNode],
+) -> Workflow {
+  Workflow::{ agents, nodes }
 }
 
 ///|

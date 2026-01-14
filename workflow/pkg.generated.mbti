@@ -48,11 +48,13 @@ pub struct TaskNode {
   agent : String
   prompt : String
 }
+pub fn TaskNode::new(String, String, Array[String], String, String) -> Self
 
 pub struct Workflow {
   agents : Array[AgentSpec]
   nodes : Array[TaskNode]
 }
+pub fn Workflow::new(Array[AgentSpec], Array[TaskNode]) -> Self
 
 // Type aliases
 
