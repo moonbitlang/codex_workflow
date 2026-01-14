@@ -18,6 +18,7 @@ moon run cmd/main -- --sample kickoff
 
 ```bash
 moon run cmd/main -- --help
+moon run cmd/main -- --sample kickoff --dag
 ```
 
 ## Notes

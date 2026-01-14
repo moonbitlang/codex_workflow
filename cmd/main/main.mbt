@@ -2,9 +2,15 @@
 async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
-    flags=["help", "list"],
+    flags=["help", "list", "dag"],
     options=["sample", "concurrency", "workdir", "model"],
-    aliases={ "h": "help", "l": "list", "s": "sample", "c": "concurrency" },
+    aliases={
+      "h": "help",
+      "l": "list",
+      "g": "dag",
+      "s": "sample",
+      "c": "concurrency",
+    },
   ) catch {
     e => {
       @stdio.stderr.write("Failed to parse arguments: \{e}\n")
@@ -22,6 +28,22 @@ async fn main {
     return
   }
   let sample = args.options.get("sample").unwrap_or("kickoff")
+  if args.flags.get("dag") is Some(true) {
+    match @workflow.sample_workflow(sample) {
+      Some(workflow) => {
+        @stdio.stdout.write("DAG for '\{sample}':\n")
+        @stdio.stdout.write(@workflow.render_workflow_dag(workflow))
+        @stdio.stdout.write("\n")
+        return
+      }
+      None => {
+        let names = @workflow.sample_names().join(", ")
+        @stdio.stderr.write("Unknown sample '\{sample}'. Available: \{names}\n")
+        @stdio.stderr.write(help_message())
+        return
+      }
+    }
+  }
   let concurrency = match args.options.get("concurrency") {
     Some(text) =>
       @strconv.parse_int(text) catch {
@@ -79,6 +101,7 @@ fn help_message() -> String {
     #|Options:
     #|  -s, --sample <name>       Sample workflow name (default: kickoff)
     #|  -c, --concurrency <num>   Max concurrent tasks (default: 2)
+    #|  -g, --dag                 Print the workflow DAG as ASCII and exit
     #|  --workdir <path>          Working directory for agents (default: .)
     #|  --model <name>            Optional model override
     #|  -l, --list                List built-in samples

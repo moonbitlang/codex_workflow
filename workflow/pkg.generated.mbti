@@ -8,6 +8,8 @@ import(
 // Values
 pub fn describe_workflow(Workflow) -> String
 
+pub fn render_workflow_dag(Workflow) -> String
+
 pub async fn run_workflow(Workflow, @codex.Codex, RunOptions) -> Map[String, String]
 
 pub fn sample_names() -> Array[String]
