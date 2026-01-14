@@ -36,6 +36,8 @@ This library provides a DAG-based workflow execution engine for orchestrating mu
   - `runner.mbt` — Async workflow execution engine
   - `sample.mbt` — Built-in sample workflows
 - `cmd/main/` — CLI entrypoint
+  - `main.mbt` — Argument parsing and command dispatch
+  - `review.mbt` — Package review mode implementation
 
 ## Core Concepts
 
@@ -178,6 +180,93 @@ moon run cmd/main -- --review-packages --repo ~/git/core/core.git --base origin/
 | `--cleanup` | — | Remove worktrees with no changes | — |
 | `--list` | `-l` | List built-in samples | — |
 | `--help` | `-h` | Show help | — |
+
+## Package Review Mode
+
+The `--review-packages` mode provides automated parallel code review for MoonBit repositories. It discovers all packages, creates isolated git worktrees, runs review agents concurrently, and opens draft PRs for packages with changes.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Package Discovery                        │
+│  Scan repo for moon.pkg.json files → [pkg1, pkg2, pkg3]    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Worktree Creation                        │
+│  For each package, create isolated git worktree:           │
+│  repo.worktrees/pkg1/  ← branch: review/pkg1               │
+│  repo.worktrees/pkg2/  ← branch: review/pkg2               │
+│  repo.worktrees/pkg3/  ← branch: review/pkg3               │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Parallel Review                           │
+│  Run review agents concurrently (up to --concurrency):     │
+│  - moon fmt <pkg>                                          │
+│  - moon check                                              │
+│  - moon test <pkg>                                         │
+│  - Apply minimal fixes if needed                           │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    PR Creation                              │
+│  For each package with changes:                            │
+│  - Commit changes scoped to package                        │
+│  - Push branch to origin                                   │
+│  - Create draft PR via gh CLI                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Usage Examples
+
+```bash
+# Review all packages in current repo
+moon run cmd/main -- --review-packages
+
+# Review packages in a specific repo
+moon run cmd/main -- --review-packages --repo ~/git/moonbit-core
+
+# Use a different base branch
+moon run cmd/main -- --review-packages --base origin/develop
+
+# Run with higher concurrency
+moon run cmd/main -- --review-packages --concurrency 8
+
+# Create ready-for-review PRs instead of drafts
+moon run cmd/main -- --review-packages --no-draft
+
+# Clean up worktrees that have no changes
+moon run cmd/main -- --review-packages --cleanup
+
+# Use a specific model for reviews
+moon run cmd/main -- --review-packages --model o3
+```
+
+### Review Agent Behavior
+
+Each review agent:
+1. Works only within its assigned package directory
+2. Runs `moon fmt`, `moon check`, and `moon test` commands
+3. Applies minimal fixes to resolve issues
+4. Does not commit or push (the runner handles this)
+5. Returns a structured summary for the PR body
+
+### Worktree Structure
+
+By default, worktrees are created in a sibling directory:
+```
+~/git/myrepo/           # Original repository
+~/git/myrepo.worktrees/ # Worktree root
+  ├── root/             # review/root branch (root package)
+  ├── src-core/         # review/src-core branch
+  ├── src-utils/        # review/src-utils branch
+  └── tests/            # review/tests branch
+```
 
 ## Built-in Samples
 
