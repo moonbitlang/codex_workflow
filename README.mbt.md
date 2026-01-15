@@ -114,7 +114,7 @@ pub async fn run_workflow(
 pub fn describe_workflow(workflow : Workflow) -> String
 
 /// Render the workflow DAG as a top-down ASCII graph.
-pub fn render_workflow_dag(workflow : Workflow) -> String
+pub fn Workflow::render_dag(self : Workflow) -> String
 ```
 
 ### Sample Workflows

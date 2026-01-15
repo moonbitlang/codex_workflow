@@ -101,16 +101,16 @@ pub fn describe_workflow(workflow : Workflow) -> String {
 ///
 /// Uses node ids as labels. If there are no nodes, returns `"(no workflow nodes)"`.
 /// Dependencies are assumed to exist; unknown ids may produce a degraded layout.
-pub fn render_workflow_dag(workflow : Workflow) -> String {
-  if workflow.nodes.is_empty() {
+pub fn Workflow::render_dag(self : Workflow) -> String {
+  if self.nodes.is_empty() {
     return "(no workflow nodes)"
   }
   let node_map : Map[ID, TaskNode] = {}
   let children : Map[ID, Array[ID]] = {}
-  for node in workflow.nodes {
+  for node in self.nodes {
     node_map[node.id] = node
   }
-  for node in workflow.nodes {
+  for node in self.nodes {
     for dep in node.deps {
       let list = children.get(dep).unwrap_or([])
       list.push(node.id)
@@ -118,11 +118,11 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     }
   }
   let indegree : Map[ID, Int] = {}
-  for node in workflow.nodes {
+  for node in self.nodes {
     indegree[node.id] = node.deps.length()
   }
   let queue : Array[ID] = []
-  for node in workflow.nodes {
+  for node in self.nodes {
     if indegree.get(node.id).unwrap_or(0) == 0 {
       queue.push(node.id)
     }
@@ -160,7 +160,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
       }
     }
   }
-  for node in workflow.nodes {
+  for node in self.nodes {
     if level.get(node.id) is None {
       level[node.id] = 0
     }
@@ -173,12 +173,12 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     let ids : Array[ID] = []
     ids
   })
-  for node in workflow.nodes {
+  for node in self.nodes {
     let depth = level.get(node.id).unwrap_or(0)
     nodes_by_level[depth].push(node.id)
   }
   let label_len : Map[ID, Int] = {}
-  for node in workflow.nodes {
+  for node in self.nodes {
     label_len[node.id] = node.id.to_string().length()
   }
   let positions : Map[ID, Int] = {}
@@ -228,7 +228,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
 
   }
   let mut width = 0
-  for node in workflow.nodes {
+  for node in self.nodes {
     let start = positions.get(node.id).unwrap_or(0)
     let len = label_len.get(node.id).unwrap_or(0)
     let end = start + len
@@ -241,7 +241,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
   }
   let height = max_level * 2 + 1
   let canvas = Canvas::new(width, height)
-  for node in workflow.nodes {
+  for node in self.nodes {
     if node.deps.is_empty() {
       continue
     }
@@ -258,7 +258,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     }
     canvas.set(child_anchor, row, 'v')
   }
-  for node in workflow.nodes {
+  for node in self.nodes {
     let depth = level.get(node.id).unwrap_or(0)
     let row = depth * 2
     let start = positions.get(node.id).unwrap_or(0)

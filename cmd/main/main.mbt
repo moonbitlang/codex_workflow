@@ -61,7 +61,7 @@ async fn main {
         }
         if wants_dag {
           @stdio.stdout.write("DAG for package reviews:\n")
-          @stdio.stdout.write(@dag.render_workflow_dag(prepared.workflow()))
+          @stdio.stdout.write(prepared.workflow().render_dag())
           @stdio.stdout.write("\n")
         }
         if wants_dag || wants_plan {
@@ -108,7 +108,7 @@ async fn main {
         }
         if wants_dag {
           @stdio.stdout.write("DAG for '\{sample}':\n")
-          @stdio.stdout.write(@dag.render_workflow_dag(workflow))
+          @stdio.stdout.write(workflow.render_dag())
           @stdio.stdout.write("\n")
         }
         return

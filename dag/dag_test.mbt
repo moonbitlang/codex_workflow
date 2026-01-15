@@ -77,13 +77,13 @@ test "render_workflow_dag renders chain" {
     TaskNode::new("alpha", "Alpha", [], "agent", "a"),
     TaskNode::new("beta", "Beta", [ID::new("alpha")], "agent", "b"),
   ])
-  inspect(render_workflow_dag(workflow), content="alpha\n  v\nbeta")
+  inspect(workflow.render_dag(), content="alpha\n  v\nbeta")
 }
 
 ///|
 test "render_workflow_dag empty" {
   let workflow = Workflow::new([], [])
-  inspect(render_workflow_dag(workflow), content="(no workflow nodes)")
+  inspect(workflow.render_dag(), content="(no workflow nodes)")
 }
 
 // --- Sample workflow tests ---
@@ -173,7 +173,7 @@ test "render_workflow_dag diamond pattern" {
     TaskNode::new("C", "Right", [ID::new("A")], "agent", "right"),
     TaskNode::new("D", "End", [ID::new("B"), ID::new("C")], "agent", "end"),
   ])
-  let dag = render_workflow_dag(workflow)
+  let dag = workflow.render_dag()
   // Verify it contains the expected node labels
   inspect(dag.contains("A"), content="true")
   inspect(dag.contains("B"), content="true")
@@ -189,7 +189,7 @@ test "render_workflow_dag parallel roots" {
     TaskNode::new("root2", "Second root", [], "agent", "r2"),
     TaskNode::new("root3", "Third root", [], "agent", "r3"),
   ])
-  let dag = render_workflow_dag(workflow)
+  let dag = workflow.render_dag()
   inspect(dag.contains("root1"), content="true")
   inspect(dag.contains("root2"), content="true")
   inspect(dag.contains("root3"), content="true")
@@ -204,7 +204,7 @@ test "render_workflow_dag wide fan-in" {
     TaskNode::new("c", "C", [], "agent", "c"),
     TaskNode::new("merge", "Merge", [ID::new("a"), ID::new("b"), ID::new("c")], "agent", "merge"),
   ])
-  let dag = render_workflow_dag(workflow)
+  let dag = workflow.render_dag()
   inspect(dag.contains("merge"), content="true")
   inspect(dag.contains("a"), content="true")
   inspect(dag.contains("b"), content="true")
@@ -220,7 +220,7 @@ test "render_workflow_dag fan-out" {
     TaskNode::new("child2", "C2", [ID::new("root")], "agent", "c2"),
     TaskNode::new("child3", "C3", [ID::new("root")], "agent", "c3"),
   ])
-  let dag = render_workflow_dag(workflow)
+  let dag = workflow.render_dag()
   inspect(dag.contains("root"), content="true")
   inspect(dag.contains("child1"), content="true")
   inspect(dag.contains("child2"), content="true")
@@ -237,14 +237,27 @@ test "render_workflow_dag deep chain" {
     TaskNode::new("n4", "N4", [ID::new("n3")], "agent", "4"),
     TaskNode::new("n5", "N5", [ID::new("n4")], "agent", "5"),
   ])
-  let dag = render_workflow_dag(workflow)
+  let dag = workflow.render_dag()
   let plan = render_workflow_plan(workflow)
   inspect(
     plan,
     content="Wave 1: n1\nWave 2: n2\nWave 3: n3\nWave 4: n4\nWave 5: n5",
   )
-  inspect(dag.contains("n1"), content="true")
-  inspect(dag.contains("n5"), content="true")
+  inspect(
+    dag,
+    content=(
+      #|n1
+      #| v
+      #|n2
+      #| v
+      #|n3
+      #| v
+      #|n4
+      #| v
+      #|n5
+    ),
+  )
+  
 }
 
 ///|
@@ -258,6 +271,7 @@ test "render_workflow_plan parallel wide" {
   ])
   let plan = render_workflow_plan(workflow)
   inspect(plan, content="Wave 1: p1, p2, p3, p4")
+  inspect(workflow.render_dag(), content="p1    p2    p3    p4")
 }
 
 ///|
@@ -265,7 +279,7 @@ test "render_workflow_dag single node" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("only", "Only", [], "agent", "only"),
   ])
-  inspect(render_workflow_dag(workflow), content="only")
+  inspect(workflow.render_dag(), content="only")
 }
 
 ///|
@@ -274,4 +288,156 @@ test "render_workflow_plan single node" {
     TaskNode::new("only", "Only", [], "agent", "only"),
   ])
   inspect(render_workflow_plan(workflow), content="Wave 1: only")
+}
+
+// --- Complex workflow visualization tests ---
+
+///|
+/// Tests a complex multi-layer DAG with branching and merging:
+///
+/// ```text
+///        start
+///       /  |  \
+///      A   B   C
+///       \  |  /
+///       merge1
+///       /    \
+///      D      E
+///       \    /
+///       final
+/// ```
+test "render_dag complex multi-layer" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("start", "Start", [], "agent", "start"),
+    TaskNode::new("A", "Branch A", [ID::new("start")], "agent", "a"),
+    TaskNode::new("B", "Branch B", [ID::new("start")], "agent", "b"),
+    TaskNode::new("C", "Branch C", [ID::new("start")], "agent", "c"),
+    TaskNode::new("merge1", "Merge 1", [ID::new("A"), ID::new("B"), ID::new("C")], "agent", "merge1"),
+    TaskNode::new("D", "Branch D", [ID::new("merge1")], "agent", "d"),
+    TaskNode::new("E", "Branch E", [ID::new("merge1")], "agent", "e"),
+    TaskNode::new("final", "Final", [ID::new("D"), ID::new("E")], "agent", "final"),
+  ])
+  let dag = workflow.render_dag()
+  // Verify all nodes are present
+  inspect(dag.contains("start"), content="true")
+  inspect(dag.contains("A"), content="true")
+  inspect(dag.contains("B"), content="true")
+  inspect(dag.contains("C"), content="true")
+  inspect(dag.contains("merge1"), content="true")
+  inspect(dag.contains("D"), content="true")
+  inspect(dag.contains("E"), content="true")
+  inspect(dag.contains("final"), content="true")
+  // Verify correct wave structure
+  let plan = render_workflow_plan(workflow)
+  inspect(
+    plan,
+    content="Wave 1: start\nWave 2: A, B, C\nWave 3: merge1\nWave 4: D, E\nWave 5: final",
+  )
+}
+
+///|
+/// Tests a wide parallel workflow with multiple independent chains:
+///
+/// ```text
+/// chain1_a    chain2_a    chain3_a
+///     |           |           |
+/// chain1_b    chain2_b    chain3_b
+///     |           |           |
+/// chain1_c    chain2_c    chain3_c
+///         \       |       /
+///          \      |      /
+///           collector
+/// ```
+test "render_dag parallel chains with collector" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    // Chain 1
+    TaskNode::new("c1a", "Chain1 A", [], "agent", "c1a"),
+    TaskNode::new("c1b", "Chain1 B", [ID::new("c1a")], "agent", "c1b"),
+    TaskNode::new("c1c", "Chain1 C", [ID::new("c1b")], "agent", "c1c"),
+    // Chain 2
+    TaskNode::new("c2a", "Chain2 A", [], "agent", "c2a"),
+    TaskNode::new("c2b", "Chain2 B", [ID::new("c2a")], "agent", "c2b"),
+    TaskNode::new("c2c", "Chain2 C", [ID::new("c2b")], "agent", "c2c"),
+    // Chain 3
+    TaskNode::new("c3a", "Chain3 A", [], "agent", "c3a"),
+    TaskNode::new("c3b", "Chain3 B", [ID::new("c3a")], "agent", "c3b"),
+    TaskNode::new("c3c", "Chain3 C", [ID::new("c3b")], "agent", "c3c"),
+    // Collector
+    TaskNode::new("collect", "Collector", [ID::new("c1c"), ID::new("c2c"), ID::new("c3c")], "agent", "collect"),
+  ])
+  let dag = workflow.render_dag()
+  // Verify all nodes present
+  for name in ["c1a", "c1b", "c1c", "c2a", "c2b", "c2c", "c3a", "c3b", "c3c", "collect"] {
+    inspect(dag.contains(name), content="true")
+  }
+  // Verify execution plan
+  let plan = render_workflow_plan(workflow)
+  inspect(
+    plan,
+    content="Wave 1: c1a, c2a, c3a\nWave 2: c1b, c2b, c3b\nWave 3: c1c, c2c, c3c\nWave 4: collect",
+  )
+}
+
+///|
+/// Tests a workflow with cross-dependencies (non-linear merge points):
+///
+/// ```text
+///   A       B
+///   |\     /|
+///   | \   / |
+///   |  \ /  |
+///   |   X   |
+///   |  / \  |
+///   | /   \ |
+///   C       D
+///    \     /
+///     \   /
+///      end
+/// ```
+test "render_dag cross dependencies" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("A", "A", [], "agent", "a"),
+    TaskNode::new("B", "B", [], "agent", "b"),
+    // C depends on both A and B
+    TaskNode::new("C", "C", [ID::new("A"), ID::new("B")], "agent", "c"),
+    // D depends on both A and B
+    TaskNode::new("D", "D", [ID::new("A"), ID::new("B")], "agent", "d"),
+    TaskNode::new("end", "End", [ID::new("C"), ID::new("D")], "agent", "end"),
+  ])
+  let dag = workflow.render_dag()
+  // Verify all nodes present
+  inspect(dag.contains("A"), content="true")
+  inspect(dag.contains("B"), content="true")
+  inspect(dag.contains("C"), content="true")
+  inspect(dag.contains("D"), content="true")
+  inspect(dag.contains("end"), content="true")
+  // Verify execution plan
+  let plan = render_workflow_plan(workflow)
+  inspect(plan, content="Wave 1: A, B\nWave 2: C, D\nWave 3: end")
+}
+
+///|
+/// Tests rendering of a workflow with long node names to verify spacing.
+test "render_dag long node names" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("initialization", "Init", [], "agent", "init"),
+    TaskNode::new("processing", "Process", [ID::new("initialization")], "agent", "process"),
+    TaskNode::new("finalization", "Final", [ID::new("processing")], "agent", "final"),
+  ])
+  let dag = workflow.render_dag()
+  // Verify all nodes are present with their full names
+  inspect(dag.contains("initialization"), content="true")
+  inspect(dag.contains("processing"), content="true")
+  inspect(dag.contains("finalization"), content="true")
+  // The DAG should show a vertical chain
+  inspect(
+    dag,
+    content=(
+      #|initialization
+      #|       v
+      #|  processing
+      #|       v
+      #| finalization
+    ),
+  )
 }

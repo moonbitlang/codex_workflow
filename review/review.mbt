@@ -17,7 +17,7 @@
 /// match @review.prepare_package_reviews(options) {
 ///   Some(prepared) => {
 ///     // Preview DAG
-///     println(@dag.render_workflow_dag(prepared.workflow()))
+///     println(prepared.workflow().render_dag())
 ///     
 ///     // Run workflow
 ///     let results = @dag.run_workflow(prepared.workflow(), codex, run_options)

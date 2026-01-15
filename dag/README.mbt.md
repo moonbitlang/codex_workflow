@@ -17,7 +17,7 @@ workflow in human-readable form for logs, plans, or quick inspections.
 ## Rendering helpers
 
 - `describe_workflow` prints a summary of agents and node dependencies.
-- `render_workflow_dag` draws an ASCII DAG using node ids.
+- `Workflow::render_dag` draws an ASCII DAG using node ids.
 - `render_workflow_plan` produces topological "waves" and reports obvious graph errors.
 
 ## Example
@@ -53,4 +53,4 @@ test {
 ## Notes
 
 - `render_workflow_plan` returns an error string on duplicate ids, missing deps, or cycles.
-- `render_workflow_dag` assumes dependencies exist and does not validate the graph.
+- `Workflow::render_dag` assumes dependencies exist and does not validate the graph.
