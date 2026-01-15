@@ -1,6 +1,6 @@
 # codex_worfkow/orchestration
 
-Workflow execution helpers that bind `@codex_worfkow/dag` to Codex runtime.
+Workflow execution helpers that bind `@dag` to Codex runtime.
 
 ## Overview
 
@@ -19,12 +19,12 @@ small sample workflows for demos and CLI help output.
 
 ```mbt check
 test {
-  let names = @codex_worfkow/orchestration.sample_names()
+  let names = @orchestration.sample_names()
   inspect(names, content="[\"kickoff\", \"review\"]")
 }
 
 test {
-  let label = match @codex_worfkow/orchestration.sample_workflow("kickoff") {
+  let label = match @orchestration.sample_workflow("kickoff") {
     Some(_) => "some"
     None => "none"
   }
@@ -36,11 +36,11 @@ test {
 
 ```mbt nocheck
 async fn run {
-  match @codex_worfkow/orchestration.sample_workflow("kickoff") {
+  match @orchestration.sample_workflow("kickoff") {
     Some(workflow) => {
-      let options = @codex_worfkow/dag.RunOptions::new(".", 2)
+      let options = @dag.RunOptions::new(".", 2)
       let codex = @codex.Codex::new()
-      let outputs = @codex_worfkow/orchestration.run_workflow(
+      let outputs = @orchestration.run_workflow(
         workflow,
         codex,
         options,

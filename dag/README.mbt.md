@@ -25,19 +25,19 @@ workflow in human-readable form for logs, plans, or quick inspections.
 
 ```mbt check
 test {
-  let agent = @codex_worfkow/dag.AgentSpec::new(
+  let agent = @dag.AgentSpec::new(
     "planner",
     "Break down the request into actionable steps.",
   )
   let nodes = [
-    @codex_worfkow/dag.TaskNode::new(
+    @dag.TaskNode::new(
       "prep",
       "Preparation",
       [],
       "planner",
       "List the inputs needed to proceed.",
     ),
-    @codex_worfkow/dag.TaskNode::new(
+    @dag.TaskNode::new(
       "ship",
       "Delivery",
       ["prep"],
@@ -45,8 +45,8 @@ test {
       "Summarize the planned work in 3 bullets.",
     ),
   ]
-  let workflow = @codex_worfkow/dag.Workflow::new([agent], nodes)
-  let plan = @codex_worfkow/dag.render_workflow_plan(workflow)
+  let workflow = @dag.Workflow::new([agent], nodes)
+  let plan = @dag.render_workflow_plan(workflow)
   inspect(plan, content="Wave 1: prep\nWave 2: ship")
 }
 ```
