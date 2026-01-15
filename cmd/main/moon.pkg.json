@@ -7,8 +7,8 @@
     "moonbitlang/x/sys",
     "peter-jerry-ye/codex",
     "peter-jerry-ye/codex/x/args",
-    "codex_worfkow/dag",
-    "codex_worfkow/orchestration",
-    "codex_worfkow/review"
+    "bobzhang/codex_workflow/dag",
+    "bobzhang/codex_workflow/orchestration",
+    "bobzhang/codex_workflow/review"
   ]
 }

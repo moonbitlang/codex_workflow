@@ -6,6 +6,6 @@
     "moonbitlang/x/path",
     "moonbitlang/x/sys",
     "peter-jerry-ye/codex",
-    "codex_worfkow/dag"
+    "bobzhang/codex_workflow/dag"
   ]
 }

@@ -5,6 +5,6 @@
     "moonbitlang/async/stdio",
     "peter-jerry-ye/codex",
     "peter-jerry-ye/codex/x/error",
-    "codex_worfkow/dag"
+    "bobzhang/codex_workflow/dag"
   ]
 }
