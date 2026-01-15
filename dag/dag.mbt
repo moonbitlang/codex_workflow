@@ -1,13 +1,33 @@
 ///|
+/// A unique identifier for task nodes in a workflow DAG.
+///
+/// This newtype wrapper around `String` provides type safety when working
+/// with node identifiers, ensuring IDs are not accidentally mixed with
+/// other string values.
+pub struct ID(String) derive(Eq, Hash, Show)
+
+///|
+/// Create a new ID from a string.
+pub fn ID::new(s : String) -> ID {
+  ID(s)
+}
+
+///|
+/// Get the underlying string value of an ID.
+pub fn ID::to_string(self : ID) -> String {
+  self.0
+}
+
+///|
 /// A single unit of work in a workflow DAG.
 ///
 /// `id` must be unique within the workflow and is used in dependency lists.
 /// `deps` lists prerequisite node ids that must finish before this node runs.
 /// `agent` must match an `AgentSpec.name` in the workflow.
 pub struct TaskNode {
-  id : String
+  id : ID
   title : String
-  deps : Array[String]
+  deps : Array[ID]
   agent : String
   prompt : String
 }
@@ -16,6 +36,7 @@ pub struct TaskNode {
 /// Construct a task node.
 ///
 /// The arguments map directly to `TaskNode` fields; no validation is performed.
+/// Accepts string arguments for convenience and wraps them in ID.
 pub fn TaskNode::new(
   id : String,
   title : String,
@@ -23,7 +44,13 @@ pub fn TaskNode::new(
   agent : String,
   prompt : String,
 ) -> TaskNode {
-  TaskNode::{ id, title, deps, agent, prompt }
+  TaskNode::{
+    id: ID(id),
+    title,
+    deps: deps.map(fn(d) { ID(d) }),
+    agent,
+    prompt,
+  }
 }
 
 ///|
@@ -85,10 +112,10 @@ pub fn describe_workflow(workflow : Workflow) -> String {
     let deps = if node.deps.is_empty() {
       "(no deps)"
     } else {
-      node.deps.join(", ")
+      node.deps.map(fn(d) { d.to_string() }).join(", ")
     }
     output = output +
-      "- \{node.id} [\{node.title}] (agent: \{node.agent}) <- \{deps}\n"
+      "- \{node.id.to_string()} [\{node.title}] (agent: \{node.agent}) <- \{deps}\n"
   }
   output
 }
@@ -102,8 +129,8 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
   if workflow.nodes.is_empty() {
     return "(no workflow nodes)"
   }
-  let node_map : Map[String, TaskNode] = {}
-  let children : Map[String, Array[String]] = {}
+  let node_map : Map[ID, TaskNode] = {}
+  let children : Map[ID, Array[ID]] = {}
   for node in workflow.nodes {
     node_map[node.id] = node
   }
@@ -114,17 +141,17 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
       children[dep] = list
     }
   }
-  let indegree : Map[String, Int] = {}
+  let indegree : Map[ID, Int] = {}
   for node in workflow.nodes {
     indegree[node.id] = node.deps.length()
   }
-  let queue : Array[String] = []
+  let queue : Array[ID] = []
   for node in workflow.nodes {
     if indegree.get(node.id).unwrap_or(0) == 0 {
       queue.push(node.id)
     }
   }
-  let topo : Array[String] = []
+  let topo : Array[ID] = []
   for idx = 0; idx < queue.length(); {
     let node_id = queue[idx]
     topo.push(node_id)
@@ -139,7 +166,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     continue idx + 1
   } else {
   }
-  let level : Map[String, Int] = {}
+  let level : Map[ID, Int] = {}
   let mut max_level = 0
   for node_id in topo {
     if node_map.get(node_id) is Some(node) {
@@ -165,21 +192,21 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
       max_level = current
     }
   }
-  let nodes_by_level : Array[Array[String]] =
+  let nodes_by_level : Array[Array[ID]] =
     Array::makei(max_level + 1, fn(_) {
-      let ids : Array[String] = []
+      let ids : Array[ID] = []
       ids
     })
   for node in workflow.nodes {
     let depth = level.get(node.id).unwrap_or(0)
     nodes_by_level[depth].push(node.id)
   }
-  let label_len : Map[String, Int] = {}
+  let label_len : Map[ID, Int] = {}
   for node in workflow.nodes {
-    label_len[node.id] = node.id.length()
+    label_len[node.id] = node.id.to_string().length()
   }
-  let positions : Map[String, Int] = {}
-  let anchors : Map[String, Int] = {}
+  let positions : Map[ID, Int] = {}
+  let anchors : Map[ID, Int] = {}
   let gap = 4
   for depth = 0; depth <= max_level; {
     let ids = nodes_by_level[depth]
@@ -188,7 +215,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     let mut first = true
     for node_id in ids {
       let len = label_len.get(node_id).unwrap_or(0)
-      let mut parents : Array[String] = []
+      let mut parents : Array[ID] = []
       if node_map.get(node_id) is Some(node) {
         parents = node.deps
       }
@@ -258,7 +285,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     let depth = level.get(node.id).unwrap_or(0)
     let row = depth * 2
     let start = positions.get(node.id).unwrap_or(0)
-    draw_label(canvas, start, row, node.id)
+    draw_label(canvas, start, row, node.id.to_string())
   }
   let lines : Array[String] = []
   for row in canvas.rows {
@@ -277,12 +304,12 @@ pub fn render_workflow_plan(workflow : Workflow) -> String {
   if workflow.nodes.is_empty() {
     return "(no workflow nodes)"
   }
-  let node_map : Map[String, TaskNode] = {}
-  let dependents : Map[String, Array[String]] = {}
-  let remaining : Map[String, Int] = {}
+  let node_map : Map[ID, TaskNode] = {}
+  let dependents : Map[ID, Array[ID]] = {}
+  let remaining : Map[ID, Int] = {}
   for node in workflow.nodes {
     if node_map.get(node.id) is Some(_) {
-      return "ERROR: Duplicate node id: \{node.id}"
+      return "ERROR: Duplicate node id: \{node.id.to_string()}"
     }
     node_map[node.id] = node
     remaining[node.id] = node.deps.length()
@@ -290,14 +317,14 @@ pub fn render_workflow_plan(workflow : Workflow) -> String {
   for node in workflow.nodes {
     for dep in node.deps {
       if node_map.get(dep) is None {
-        return "ERROR: Unknown dependency: \{dep} (required by \{node.id})"
+        return "ERROR: Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})"
       }
       let list = dependents.get(dep).unwrap_or([])
       list.push(node.id)
       dependents[dep] = list
     }
   }
-  let mut ready : Array[String] = []
+  let mut ready : Array[ID] = []
   for node in workflow.nodes {
     if remaining.get(node.id).unwrap_or(0) == 0 {
       ready.push(node.id)
@@ -309,10 +336,10 @@ pub fn render_workflow_plan(workflow : Workflow) -> String {
   let mut wave_index = 1
   while !ready.is_empty() {
     let wave = ready
-    let wave_label = wave.join(", ")
+    let wave_label = wave.map(fn(id) { id.to_string() }).join(", ")
     lines.push("Wave \{wave_index}: \{wave_label}")
     wave_index = wave_index + 1
-    let next_ready : Array[String] = []
+    let next_ready : Array[ID] = []
     for node_id in wave {
       completed = completed + 1
       let children = dependents.get(node_id).unwrap_or([])

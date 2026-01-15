@@ -135,12 +135,12 @@ pub async fn prepare_package_reviews(
 /// Call this after running the workflow with `@dag.run_workflow()`.
 pub async fn process_review_results(
   prepared : PreparedReview,
-  results : Map[String, String],
+  results : Map[@dag.ID, String],
 ) -> Unit {
   let options = prepared.options
   let base_branch = pr_base_branch(prepared.base_ref)
   for review in prepared.reviews {
-    let output = results.get(review.task_id).unwrap_or("")
+    let output = results.get(@dag.ID::new(review.task_id)).unwrap_or("")
     let changed_files = list_changed_files(review.worktree_path)
     if changed_files.is_empty() {
       @stdio.stdout.write(

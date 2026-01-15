@@ -161,7 +161,7 @@ async fn main {
       @stdio.stdout.write("\nResults:\n")
       for node in workflow.nodes {
         let output = results.get(node.id).unwrap_or("<missing output>")
-        @stdio.stdout.write("\n=== \{node.id}: \{node.title} ===\n\{output}\n")
+        @stdio.stdout.write("\n=== \{node.id.to_string()}: \{node.title} ===\n\{output}\n")
       }
     }
     None => {

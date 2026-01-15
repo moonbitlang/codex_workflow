@@ -1,9 +1,9 @@
 ///|
 /// Internal dependency tracking for wave execution.
 priv struct Graph {
-  nodes : Map[String, @dag.TaskNode]
-  dependents : Map[String, Array[String]]
-  remaining : Map[String, Int]
+  nodes : Map[@dag.ID, @dag.TaskNode]
+  dependents : Map[@dag.ID, Array[@dag.ID]]
+  remaining : Map[@dag.ID, Int]
 }
 
 ///|
@@ -19,19 +19,19 @@ pub async fn run_workflow(
   workflow : @dag.Workflow,
   codex : @codex.Codex,
   options : @dag.RunOptions,
-) -> Map[String, String] {
+) -> Map[@dag.ID, String] {
   if workflow.nodes.is_empty() {
     return {}
   }
   let agent_map = build_agent_map(workflow)
   let graph = build_graph(workflow)
-  let mut ready : Array[String] = []
+  let mut ready : Array[@dag.ID] = []
   for node in workflow.nodes {
     if node.deps.is_empty() {
       ready.push(node.id)
     }
   }
-  let results : Map[String, String] = {}
+  let results : Map[@dag.ID, String] = {}
   let total = workflow.nodes.length()
   let mut completed = 0
   let mut wave = 0
@@ -42,9 +42,9 @@ pub async fn run_workflow(
   }
   while !ready.is_empty() {
     wave = wave + 1
-    let ready_list = ready.join(", ")
+    let ready_list = ready.map(fn(id) { id.to_string() }).join(", ")
     @stdio.stdout.write("Wave \{wave} ready: \{ready_list}\n")
-    let wave_results : Array[(String, String)] = []
+    let wave_results : Array[(@dag.ID, String)] = []
     @async.with_task_group(fn(task_group) {
       let semaphore = @semaphore.Semaphore::new(concurrency)
       for node_id in ready {
@@ -54,20 +54,20 @@ pub async fn run_workflow(
           semaphore.acquire()
           defer semaphore.release()
           @stdio.stdout.write(
-            "info [\{node_id}] start - \{node.title} via \{agent.label()}\n",
+            "info [\{node_id.to_string()}] start - \{node.title} via \{agent.label()}\n",
           )
           let output = run_node(node, agent, results, codex, options) catch {
             e => {
-              @stdio.stderr.write("error [\{node_id}] failed: \{e}\n")
+              @stdio.stderr.write("error [\{node_id.to_string()}] failed: \{e}\n")
               "ERROR: \{e}"
             }
           }
           wave_results.push((node_id, output))
-          @stdio.stdout.write("info [\{node_id}] done\n")
+          @stdio.stdout.write("info [\{node_id.to_string()}] done\n")
         })
       }
     })
-    let next_ready : Array[String] = []
+    let next_ready : Array[@dag.ID] = []
     for node_result in wave_results {
       let (node_id, output) = node_result
       results[node_id] = output
@@ -96,7 +96,7 @@ pub async fn run_workflow(
 async fn run_node(
   node : @dag.TaskNode,
   agent : @dag.AgentSpec,
-  results : Map[String, String],
+  results : Map[@dag.ID, String],
   codex : @codex.Codex,
   options : @dag.RunOptions,
 ) -> String {
@@ -123,7 +123,7 @@ async fn run_node(
 fn build_prompt(
   node : @dag.TaskNode,
   agent : @dag.AgentSpec,
-  results : Map[String, String],
+  results : Map[@dag.ID, String],
 ) -> String {
   let mut prompt =
     $|You are agent \{agent.name}.
@@ -139,7 +139,7 @@ fn build_prompt(
   prompt = prompt + "\n\nDependency outputs:\n"
   for dep in node.deps {
     let dep_output = results.get(dep).unwrap_or("<missing output>")
-    prompt = prompt + "- " + dep + ":\n" + dep_output + "\n"
+    prompt = prompt + "- " + dep.to_string() + ":\n" + dep_output + "\n"
   }
   prompt
 }
@@ -160,12 +160,12 @@ fn build_agent_map(workflow : @dag.Workflow) -> Map[String, @dag.AgentSpec] rais
 ///|
 /// Build the dependency graph for workflow execution.
 fn build_graph(workflow : @dag.Workflow) -> Graph raise {
-  let nodes : Map[String, @dag.TaskNode] = {}
-  let dependents : Map[String, Array[String]] = {}
-  let remaining : Map[String, Int] = {}
+  let nodes : Map[@dag.ID, @dag.TaskNode] = {}
+  let dependents : Map[@dag.ID, Array[@dag.ID]] = {}
+  let remaining : Map[@dag.ID, Int] = {}
   for node in workflow.nodes {
     if nodes.get(node.id) is Some(_) {
-      @error.fail("Duplicate node id: \{node.id}")
+      @error.fail("Duplicate node id: \{node.id.to_string()}")
     }
     nodes[node.id] = node
     remaining[node.id] = node.deps.length()
@@ -173,7 +173,7 @@ fn build_graph(workflow : @dag.Workflow) -> Graph raise {
   for node in workflow.nodes {
     for dep in node.deps {
       if nodes.get(dep) is None {
-        @error.fail("Unknown dependency: \{dep} (required by \{node.id})")
+        @error.fail("Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})")
       }
       let list = dependents.get(dep).unwrap_or([])
       list.push(node.id)
@@ -186,12 +186,12 @@ fn build_graph(workflow : @dag.Workflow) -> Graph raise {
 ///|
 /// Retrieve a node by id or raise a descriptive error.
 fn require_node(
-  nodes : Map[String, @dag.TaskNode],
-  node_id : String,
+  nodes : Map[@dag.ID, @dag.TaskNode],
+  node_id : @dag.ID,
 ) -> @dag.TaskNode raise {
   match nodes.get(node_id) {
     Some(node) => node
-    None => @error.fail("Missing node for id: \{node_id}")
+    None => @error.fail("Missing node for id: \{node_id.to_string()}")
   }
 }
 
