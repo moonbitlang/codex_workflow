@@ -42,7 +42,7 @@ async fn main {
     return
   }
   if args.flags.get("list") is Some(true) {
-    let names = @orchestration.sample_names().join(", ")
+    let names = @dag.sample_names().join(", ")
     @stdio.stdout.write("Samples: \{names}\n")
     return
   }
@@ -111,7 +111,7 @@ async fn main {
   let wants_dag = args.flags.get("dag") is Some(true)
   let wants_plan = args.flags.get("plan") is Some(true)
   if wants_dag || wants_plan {
-    match @orchestration.sample_workflow(sample) {
+    match @dag.sample_workflow(sample) {
       Some(workflow) => {
         if wants_plan {
           @stdio.stdout.write("Plan for '\{sample}':\n")
@@ -126,7 +126,7 @@ async fn main {
         return
       }
       None => {
-        let names = @orchestration.sample_names().join(", ")
+        let names = @dag.sample_names().join(", ")
         @stdio.stderr.write("Unknown sample '\{sample}'. Available: \{names}\n")
         @stdio.stderr.write(help_message())
         return
@@ -145,7 +145,7 @@ async fn main {
     default_model?=model,
   )
   let codex = @codex.Codex::new()
-  match @orchestration.sample_workflow(sample) {
+  match @dag.sample_workflow(sample) {
     Some(workflow) => {
       @stdio.stdout.write("Running sample '\{sample}'\n\n")
       @stdio.stdout.write(@dag.describe_workflow(workflow))
@@ -165,7 +165,7 @@ async fn main {
       }
     }
     None => {
-      let names = @orchestration.sample_names().join(", ")
+      let names = @dag.sample_names().join(", ")
       @stdio.stderr.write("Unknown sample '\{sample}'. Available: \{names}\n")
       @stdio.stderr.write(help_message())
     }

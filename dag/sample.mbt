@@ -3,7 +3,7 @@
 ///
 /// The current samples are `"kickoff"` (planning + summary) and `"review"`
 /// (lightweight repo review).
-pub fn sample_workflows() -> Array[(String, @dag.Workflow)] {
+pub fn sample_workflows() -> Array[(String, Workflow)] {
   [("kickoff", kickoff_workflow()), ("review", review_workflow())]
 }
 
@@ -11,7 +11,7 @@ pub fn sample_workflows() -> Array[(String, @dag.Workflow)] {
 /// Lookup a sample workflow by name.
 ///
 /// Returns `None` when the name is not recognized.
-pub fn sample_workflow(name : String) -> @dag.Workflow? {
+pub fn sample_workflow(name : String) -> Workflow? {
   for item in sample_workflows() {
     let (workflow_name, workflow) = item
     if workflow_name == name {
@@ -36,47 +36,47 @@ pub fn sample_names() -> Array[String] {
 
 ///|
 /// Build the "kickoff" planning workflow.
-fn kickoff_workflow() -> @dag.Workflow {
+fn kickoff_workflow() -> Workflow {
   let agents = [
-    @dag.AgentSpec::new(
+    AgentSpec::new(
       "planner",
       "Break down objectives into steps and risks.",
       sandbox_mode=@codex.SandboxMode::ReadOnly,
     ),
-    @dag.AgentSpec::new(
+    AgentSpec::new(
       "researcher",
       "Inspect the repo and report facts only.",
       sandbox_mode=@codex.SandboxMode::ReadOnly,
     ),
-    @dag.AgentSpec::new(
+    AgentSpec::new(
       "writer",
       "Synthesize a concise brief using upstream outputs.",
       sandbox_mode=@codex.SandboxMode::ReadOnly,
     ),
   ]
   let nodes = [
-    @dag.TaskNode::new(
+    TaskNode::new(
       "repo_overview",
       "Repository overview",
       [],
       "researcher",
       "List the top-level directories in this repository and summarize each in one short sentence.",
     ),
-    @dag.TaskNode::new(
+    TaskNode::new(
       "requirements",
       "Workflow constraints",
       [],
       "planner",
       "List 3 constraints or concerns for a multi-agent Codex workflow runner.",
     ),
-    @dag.TaskNode::new(
+    TaskNode::new(
       "workflow_plan",
       "Workflow plan",
       ["repo_overview", "requirements"],
       "planner",
       "Propose a minimal 3-step workflow DAG based on the inputs.",
     ),
-    @dag.TaskNode::new(
+    TaskNode::new(
       "final_brief",
       "Final brief",
       ["workflow_plan"],
@@ -84,40 +84,40 @@ fn kickoff_workflow() -> @dag.Workflow {
       "Summarize the workflow plan in 5 lines for a status update.",
     ),
   ]
-  @dag.Workflow::new(agents, nodes)
+  Workflow::new(agents, nodes)
 }
 
 ///|
 /// Build the "review" workflow used for quick repo scans.
-fn review_workflow() -> @dag.Workflow {
+fn review_workflow() -> Workflow {
   let agents = [
-    @dag.AgentSpec::new(
+    AgentSpec::new(
       "reviewer",
       "Review text and suggest focused improvements.",
       sandbox_mode=@codex.SandboxMode::ReadOnly,
     ),
-    @dag.AgentSpec::new(
+    AgentSpec::new(
       "scribe",
       "Aggregate findings and present a clear summary.",
       sandbox_mode=@codex.SandboxMode::ReadOnly,
     ),
   ]
   let nodes = [
-    @dag.TaskNode::new(
+    TaskNode::new(
       "readme_scan",
       "Scan README",
       [],
       "reviewer",
       "Read README.mbt.md and list 3 gaps or missing clarifications.",
     ),
-    @dag.TaskNode::new(
+    TaskNode::new(
       "cli_scan",
       "Scan CLI",
       [],
       "reviewer",
       "Read cmd/main/main.mbt and list 2 UX improvements for the CLI.",
     ),
-    @dag.TaskNode::new(
+    TaskNode::new(
       "review_summary",
       "Review summary",
       ["readme_scan", "cli_scan"],
@@ -125,5 +125,5 @@ fn review_workflow() -> @dag.Workflow {
       "Summarize the review findings and suggest one next action.",
     ),
   ]
-  @dag.Workflow::new(agents, nodes)
+  Workflow::new(agents, nodes)
 }
