@@ -58,7 +58,9 @@ pub async fn run_workflow(
           )
           let output = run_node(node, agent, results, codex, options) catch {
             e => {
-              @stdio.stderr.write("error [\{node_id.to_string()}] failed: \{e}\n")
+              @stdio.stderr.write(
+                "error [\{node_id.to_string()}] failed: \{e}\n",
+              )
               "ERROR: \{e}"
             }
           }
@@ -126,7 +128,7 @@ fn build_prompt(
   results : Map[@dag.ID, String],
 ) -> String {
   let mut prompt =
-    $|You are agent \{agent.name}.
+    $|You are agent \{agent.name.to_string()}.
     $|Role: \{agent.role}
     $|
     $|Task: \{node.prompt}
@@ -146,11 +148,13 @@ fn build_prompt(
 
 ///|
 /// Index agents by name and fail fast on duplicates.
-fn build_agent_map(workflow : @dag.Workflow) -> Map[String, @dag.AgentSpec] raise {
-  let agent_map : Map[String, @dag.AgentSpec] = {}
+fn build_agent_map(
+  workflow : @dag.Workflow,
+) -> Map[@dag.AgentID, @dag.AgentSpec] raise {
+  let agent_map : Map[@dag.AgentID, @dag.AgentSpec] = {}
   for agent in workflow.agents {
     if agent_map.get(agent.name) is Some(_) {
-      @error.fail("Duplicate agent name: \{agent.name}")
+      @error.fail("Duplicate agent name: \{agent.name.to_string()}")
     }
     agent_map[agent.name] = agent
   }
@@ -173,7 +177,9 @@ fn build_graph(workflow : @dag.Workflow) -> Graph raise {
   for node in workflow.nodes {
     for dep in node.deps {
       if nodes.get(dep) is None {
-        @error.fail("Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})")
+        @error.fail(
+          "Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})",
+        )
       }
       let list = dependents.get(dep).unwrap_or([])
       list.push(node.id)
@@ -198,11 +204,11 @@ fn require_node(
 ///|
 /// Retrieve an agent by name or raise a descriptive error.
 fn require_agent(
-  agents : Map[String, @dag.AgentSpec],
-  name : String,
+  agents : Map[@dag.AgentID, @dag.AgentSpec],
+  name : @dag.AgentID,
 ) -> @dag.AgentSpec raise {
   match agents.get(name) {
     Some(agent) => agent
-    None => @error.fail("Missing agent for name: \{name}")
+    None => @error.fail("Missing agent for name: \{name.to_string()}")
   }
 }

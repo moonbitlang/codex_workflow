@@ -82,11 +82,11 @@ pub fn PreparedReview::model(self : PreparedReview) -> String? {
 /// Creates default options with sensible defaults.
 pub fn PackageReviewOptions::new(
   repo_path : String,
-  base_ref~ : String = "origin/main",
-  worktrees_root~ : String = "",
-  model~ : String? = None,
-  draft~ : Bool = true,
-  cleanup~ : Bool = false,
+  base_ref? : String = "origin/main",
+  worktrees_root? : String = "",
+  model? : String? = None,
+  draft? : Bool = true,
+  cleanup? : Bool = false,
 ) -> PackageReviewOptions {
   { repo_path, worktrees_root, base_ref, model, draft, cleanup }
 }
@@ -97,7 +97,7 @@ pub fn PackageReviewOptions::new(
 ///
 /// Returns `None` if the repository is invalid or no packages are found.
 pub async fn prepare_package_reviews(
-  options : PackageReviewOptions
+  options : PackageReviewOptions,
 ) -> PreparedReview? {
   let repo = normalize_path(expand_home(options.repo_path))
   if !is_git_repo(repo) {
@@ -127,7 +127,13 @@ pub async fn prepare_package_reviews(
     return None
   }
   let workflow = build_review_workflow(ready, options.model, repo, base)
-  Some(PreparedReview::{ reviews: ready, workflow, repo, base_ref: base, options })
+  Some(PreparedReview::{
+    reviews: ready,
+    workflow,
+    repo,
+    base_ref: base,
+    options,
+  })
 }
 
 ///|
@@ -167,13 +173,13 @@ pub async fn process_review_results(
       continue
     }
     if !create_pr(
-      review.worktree_path,
-      review.branch,
-      base_branch,
-      title,
-      body,
-      options.draft,
-    ) {
+        review.worktree_path,
+        review.branch,
+        base_branch,
+        title,
+        body,
+        options.draft,
+      ) {
       continue
     }
     @stdio.stdout.write(
@@ -219,10 +225,9 @@ fn default_worktrees_root(repo_path : String) -> String {
 ///|
 /// Checks if the given path is inside a valid Git repository.
 async fn is_git_repo(repo : String) -> Bool {
-  let (code, output) = run_command_output(
-    "git",
-    ["-C", repo, "rev-parse", "--show-toplevel"],
-  )
+  let (code, output) = run_command_output("git", [
+    "-C", repo, "rev-parse", "--show-toplevel",
+  ])
   if code != 0 {
     @stdio.stderr.write("Not a git repo at \{repo}: \{output}\n")
     return false
@@ -234,6 +239,7 @@ async fn is_git_repo(repo : String) -> Bool {
 /// Creates a directory (and parents) if it doesn't exist.
 async fn ensure_directory(path : String) -> Unit {
   let _ = @process.run("mkdir", ["-p", path], inherit_env=true)
+
 }
 
 ///|
@@ -331,12 +337,17 @@ fn slugify_package(package_dir : String) -> String {
   for ch in package_dir {
     match ch {
       '/' | '\\' => builder.write_char('-')
-      'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' => builder.write_char(ch)
+      'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' =>
+        builder.write_char(ch)
       _ => builder.write_char('-')
     }
   }
   let slug = builder.to_string()
-  if slug.is_empty() { "root" } else { slug }
+  if slug.is_empty() {
+    "root"
+  } else {
+    slug
+  }
 }
 
 ///|
@@ -399,8 +410,7 @@ fn build_review_workflow(
   let agents : Array[@dag.AgentSpec] = []
   let nodes : Array[@dag.TaskNode] = []
   for review in reviews {
-    let role =
-      "Review package \{review.package_dir} with minimal fixes and tests."
+    let role = "Review package \{review.package_dir} with minimal fixes and tests."
     let agent = match model {
       Some(value) =>
         @dag.AgentSpec::new(
@@ -473,27 +483,20 @@ fn build_review_prompt(
 
 ///|
 fn default_tests(package_dir : String) -> Array[String] {
-  [
-    "moon fmt \{package_dir}",
-    "moon check",
-    "moon test \{package_dir}",
-  ]
+  ["moon fmt \{package_dir}", "moon check", "moon test \{package_dir}"]
 }
 
 ///|
 /// Lists all changed files (staged, unstaged, and untracked) in a worktree.
 async fn list_changed_files(worktree_path : String) -> Array[String] {
-  let (code, output) = run_command_output(
-    "git",
-    ["-C", worktree_path, "diff", "--name-only"],
-  )
+  let (code, output) = run_command_output("git", [
+    "-C", worktree_path, "diff", "--name-only",
+  ])
   let tracked = if code == 0 { split_lines(output) } else { [] }
-  let (other_code, other_output) = run_command_output(
-    "git",
-    ["-C", worktree_path, "ls-files", "--others", "--exclude-standard"],
-  )
-  let untracked =
-    if other_code == 0 { split_lines(other_output) } else { [] }
+  let (other_code, other_output) = run_command_output("git", [
+    "-C", worktree_path, "ls-files", "--others", "--exclude-standard",
+  ])
+  let untracked = if other_code == 0 { split_lines(other_output) } else { [] }
   let seen : Map[String, Bool] = {}
   for file in tracked {
     if !file.is_empty() {
@@ -567,20 +570,18 @@ async fn commit_package_changes(
   package_dir : String,
   title : String,
 ) -> Bool {
-  let (add_code, add_output) = run_command_output(
-    "git",
-    ["-C", worktree_path, "add", package_dir],
-  )
+  let (add_code, add_output) = run_command_output("git", [
+    "-C", worktree_path, "add", package_dir,
+  ])
   if add_code != 0 {
     @stdio.stderr.write(
       "Failed to stage changes in \{package_dir}: \{add_output}\n",
     )
     return false
   }
-  let (commit_code, commit_output) = run_command_output(
-    "git",
-    ["-C", worktree_path, "commit", "-m", title],
-  )
+  let (commit_code, commit_output) = run_command_output("git", [
+    "-C", worktree_path, "commit", "-m", title,
+  ])
   if commit_code != 0 {
     @stdio.stderr.write(
       "Failed to commit changes in \{package_dir}: \{commit_output}\n",
@@ -593,10 +594,9 @@ async fn commit_package_changes(
 ///|
 /// Pushes the review branch to the remote repository.
 async fn push_branch(worktree_path : String, branch : String) -> Bool {
-  let (code, output) = run_command_output(
-    "git",
-    ["-C", worktree_path, "push", "-u", "origin", branch],
-  )
+  let (code, output) = run_command_output("git", [
+    "-C", worktree_path, "push", "-u", "origin", branch,
+  ])
   if code != 0 {
     @stdio.stderr.write("Failed to push \{branch}: \{output}\n")
     return false
@@ -615,25 +615,16 @@ async fn create_pr(
   draft : Bool,
 ) -> Bool {
   let body_path = join_path(worktree_path, ".codex_pr_body.md")
-  let write_result : Result[Unit, @fs.IOError] =
-    try? @fs.write_string_to_file(body_path, body)
+  let write_result : Result[Unit, @fs.IOError] = try? @fs.write_string_to_file(
+    body_path, body,
+  )
   if write_result is Err(err) {
     @stdio.stderr.write("Failed to write PR body: \{err}\n")
     return false
   }
   let args : Array[String] = [
-    "-C",
-    worktree_path,
-    "pr",
-    "create",
-    "--base",
-    base_branch,
-    "--head",
-    branch,
-    "--title",
-    title,
-    "--body-file",
-    body_path,
+    "-C", worktree_path, "pr", "create", "--base", base_branch, "--head", branch,
+    "--title", title, "--body-file", body_path,
   ]
   if draft {
     args.push("--draft")
@@ -659,10 +650,10 @@ fn pr_base_branch(base_ref : String) -> String {
 ///|
 /// Removes a Git worktree (cleanup when no changes detected).
 async fn remove_worktree(repo : String, worktree_path : String) -> Unit {
-  let _ = run_command_output(
-    "git",
-    ["-C", repo, "worktree", "remove", worktree_path],
-  )
+  let _ = run_command_output("git", [
+    "-C", repo, "worktree", "remove", worktree_path,
+  ])
+
 }
 
 ///|
@@ -676,23 +667,15 @@ async fn run_command_output(
   let (stdout_path, stderr_path) = temp_output_paths()
   let tmp_dir = @path.Path(stdout_path).dirname().to_string()
   ensure_directory(tmp_dir)
-  let stdout = @process.redirect_to_file(
-    stdout_path,
-    create=420,
-    truncate=true,
-  )
-  let stderr = @process.redirect_to_file(
-    stderr_path,
-    create=420,
-    truncate=true,
-  )
+  let stdout = @process.redirect_to_file(stdout_path, create=420, truncate=true)
+  let stderr = @process.redirect_to_file(stderr_path, create=420, truncate=true)
   let code = @process.run(
     command,
     args,
     inherit_env=true,
-    stdout=stdout,
-    stderr=stderr,
-    cwd?=cwd,
+    stdout~,
+    stderr~,
+    cwd?,
   )
   let out_text = read_file_safe(stdout_path)
   let err_text = read_file_safe(stderr_path)

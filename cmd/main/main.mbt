@@ -3,23 +3,10 @@ async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
     flags=[
-      "help",
-      "list",
-      "dag",
-      "plan",
-      "review-packages",
-      "draft",
-      "no-draft",
-      "cleanup",
+      "help", "list", "dag", "plan", "review-packages", "draft", "no-draft", "cleanup",
     ],
     options=[
-      "sample",
-      "concurrency",
-      "workdir",
-      "model",
-      "repo",
-      "worktrees",
-      "base",
+      "sample", "concurrency", "workdir", "model", "repo", "worktrees", "base",
     ],
     aliases={
       "h": "help",
@@ -52,19 +39,16 @@ async fn main {
     let repo = args.options.get("repo").unwrap_or(".")
     let worktrees = args.options.get("worktrees").unwrap_or("")
     let base = args.options.get("base").unwrap_or("origin/main")
-    let concurrency = parse_concurrency(
-      args.options.get("concurrency"),
-      4,
-    )
+    let concurrency = parse_concurrency(args.options.get("concurrency"), 4)
     let draft = !(args.flags.get("no-draft") is Some(true))
     let cleanup = args.flags.get("cleanup") is Some(true)
     let options = @review.PackageReviewOptions::new(
       repo,
       base_ref=base,
       worktrees_root=worktrees,
-      model=model,
-      draft=draft,
-      cleanup=cleanup,
+      model~,
+      draft~,
+      cleanup~,
     )
     let wants_dag = args.flags.get("dag") is Some(true)
     let wants_plan = args.flags.get("plan") is Some(true)
@@ -94,7 +78,11 @@ async fn main {
         @stdio.stdout.write(
           "Reviewing packages with concurrency \{concurrency}...\n",
         )
-        let results = @orchestration.run_workflow(prepared.workflow(), codex, run_options) catch {
+        let results = @orchestration.run_workflow(
+          prepared.workflow(),
+          codex,
+          run_options,
+        ) catch {
           e => {
             @stdio.stderr.write("Package review failed: \{e}\n")
             return
@@ -133,10 +121,7 @@ async fn main {
       }
     }
   }
-  let concurrency = parse_concurrency(
-    args.options.get("concurrency"),
-    2,
-  )
+  let concurrency = parse_concurrency(args.options.get("concurrency"), 2)
   let workdir = args.options.get("workdir").unwrap_or(".")
   let options = @dag.RunOptions::new(
     workdir,
@@ -161,7 +146,9 @@ async fn main {
       @stdio.stdout.write("\nResults:\n")
       for node in workflow.nodes {
         let output = results.get(node.id).unwrap_or("<missing output>")
-        @stdio.stdout.write("\n=== \{node.id.to_string()}: \{node.title} ===\n\{output}\n")
+        @stdio.stdout.write(
+          "\n=== \{node.id.to_string()}: \{node.title} ===\n\{output}\n",
+        )
       }
     }
     None => {

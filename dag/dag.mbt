@@ -28,7 +28,7 @@ pub struct TaskNode {
   id : ID
   title : String
   deps : Array[ID]
-  agent : String
+  agent : AgentID
   prompt : String
 }
 
@@ -48,7 +48,7 @@ pub fn TaskNode::new(
     id: ID(id),
     title,
     deps: deps.map(fn(d) { ID(d) }),
-    agent,
+    agent: AgentID(agent),
     prompt,
   }
 }
@@ -105,7 +105,9 @@ pub fn RunOptions::new(
 ///
 /// Returns a multi-line summary including the agent list and node dependencies.
 pub fn describe_workflow(workflow : Workflow) -> String {
-  let agent_names = workflow.agents.map(fn(agent) { agent.name }).join(", ")
+  let agent_names = workflow.agents
+    .map(fn(agent) { agent.name.to_string() })
+    .join(", ")
   let mut output = "Agents: \{agent_names}\n"
   output = output + "Workflow nodes:\n"
   for node in workflow.nodes {
@@ -115,7 +117,7 @@ pub fn describe_workflow(workflow : Workflow) -> String {
       node.deps.map(fn(d) { d.to_string() }).join(", ")
     }
     output = output +
-      "- \{node.id.to_string()} [\{node.title}] (agent: \{node.agent}) <- \{deps}\n"
+      "- \{node.id.to_string()} [\{node.title}] (agent: \{node.agent.to_string()}) <- \{deps}\n"
   }
   output
 }
@@ -165,6 +167,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     }
     continue idx + 1
   } else {
+
   }
   let level : Map[ID, Int] = {}
   let mut max_level = 0
@@ -192,11 +195,10 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
       max_level = current
     }
   }
-  let nodes_by_level : Array[Array[ID]] =
-    Array::makei(max_level + 1, fn(_) {
-      let ids : Array[ID] = []
-      ids
-    })
+  let nodes_by_level : Array[Array[ID]] = Array::makei(max_level + 1, fn(_) {
+    let ids : Array[ID] = []
+    ids
+  })
   for node in workflow.nodes {
     let depth = level.get(node.id).unwrap_or(0)
     nodes_by_level[depth].push(node.id)
@@ -249,6 +251,7 @@ pub fn render_workflow_dag(workflow : Workflow) -> String {
     }
     continue depth + 1
   } else {
+
   }
   let mut width = 0
   for node in workflow.nodes {
@@ -370,10 +373,7 @@ priv struct Canvas {
 ///|
 /// Allocate a canvas filled with spaces.
 fn Canvas::new(width : Int, height : Int) -> Canvas {
-  let rows =
-    Array::makei(height, fn(_) {
-      Array::make(width, ' ')
-    })
+  let rows = Array::makei(height, fn(_) { Array::make(width, ' ') })
   Canvas::{ width, height, rows }
 }
 
@@ -425,6 +425,7 @@ fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
     canvas.set(x, y, '-')
     continue x + 1
   } else {
+
   }
 }
 

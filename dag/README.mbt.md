@@ -24,10 +24,10 @@ workflow in human-readable form for logs, plans, or quick inspections.
 ## Example
 
 ```mbt check
+///|
 test {
   let agent = @dag.AgentSpec::new(
-    "planner",
-    "Break down the request into actionable steps.",
+    "planner", "Break down the request into actionable steps.",
   )
   let nodes = [
     @dag.TaskNode::new(
