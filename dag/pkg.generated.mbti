@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "codex_worfkow/dag"
+package "bobzhang/codex_workflow/dag"
 
 import(
   "peter-jerry-ye/codex"
@@ -12,11 +12,26 @@ pub fn render_workflow_dag(Workflow) -> String
 
 pub fn render_workflow_plan(Workflow) -> String
 
+pub fn sample_names() -> Array[String]
+
+pub fn sample_workflow(String) -> Workflow?
+
+pub fn sample_workflows() -> Array[(String, Workflow)]
+
 // Errors
 
 // Types and methods
+pub struct AgentID(String)
+#deprecated
+pub fn AgentID::inner(Self) -> String
+pub fn AgentID::new(String) -> Self
+pub fn AgentID::to_string(Self) -> String
+pub impl Eq for AgentID
+pub impl Hash for AgentID
+pub impl Show for AgentID
+
 pub struct AgentSpec {
-  name : String
+  name : AgentID
   role : String
   model : String?
   sandbox_mode : @codex.SandboxMode?
@@ -25,22 +40,23 @@ pub struct AgentSpec {
 pub fn AgentSpec::label(Self) -> String
 pub fn AgentSpec::new(String, String, model? : String, sandbox_mode? : @codex.SandboxMode, working_directory? : String) -> Self
 
-pub struct RunOptions {
-  concurrency : Int
-  working_directory : String
-  default_sandbox : @codex.SandboxMode
-  default_model : String?
-}
-pub fn RunOptions::new(String, Int, default_sandbox? : @codex.SandboxMode, default_model? : String) -> Self
+pub struct ID(String)
+#deprecated
+pub fn ID::inner(Self) -> String
+pub fn ID::new(String) -> Self
+pub fn ID::to_string(Self) -> String
+pub impl Eq for ID
+pub impl Hash for ID
+pub impl Show for ID
 
 pub struct TaskNode {
-  id : String
+  id : ID
   title : String
-  deps : Array[String]
-  agent : String
+  deps : Array[ID]
+  agent : AgentID
   prompt : String
 }
-pub fn TaskNode::new(String, String, Array[String], String, String) -> Self
+pub fn TaskNode::new(String, String, Array[ID], String, String) -> Self
 
 pub struct Workflow {
   agents : Array[AgentSpec]

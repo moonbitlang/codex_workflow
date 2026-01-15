@@ -1,23 +1,24 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "codex_worfkow/orchestration"
+package "bobzhang/codex_workflow/orchestration"
 
 import(
-  "codex_worfkow/dag"
+  "bobzhang/codex_workflow/dag"
   "peter-jerry-ye/codex"
 )
 
 // Values
-pub async fn run_workflow(@dag.Workflow, @codex.Codex, @dag.RunOptions) -> Map[String, String]
-
-pub fn sample_names() -> Array[String]
-
-pub fn sample_workflow(String) -> @dag.Workflow?
-
-pub fn sample_workflows() -> Array[(String, @dag.Workflow)]
+pub async fn run_workflow(@dag.Workflow, @codex.Codex, RunOptions) -> Map[@dag.ID, String]
 
 // Errors
 
 // Types and methods
+pub struct RunOptions {
+  concurrency : Int
+  working_directory : String
+  default_sandbox : @codex.SandboxMode
+  default_model : String?
+}
+pub fn RunOptions::new(String, Int, default_sandbox? : @codex.SandboxMode, default_model? : String) -> Self
 
 // Type aliases
 

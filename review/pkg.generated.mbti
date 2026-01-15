@@ -1,14 +1,14 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "codex_worfkow/review"
+package "bobzhang/codex_workflow/review"
 
 import(
-  "codex_worfkow/dag"
+  "bobzhang/codex_workflow/dag"
 )
 
 // Values
 pub async fn prepare_package_reviews(PackageReviewOptions) -> PreparedReview?
 
-pub async fn process_review_results(PreparedReview, Map[String, String]) -> Unit
+pub async fn process_review_results(PreparedReview, Map[@dag.ID, String]) -> Unit
 
 // Errors
 
