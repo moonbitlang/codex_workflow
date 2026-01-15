@@ -271,21 +271,21 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
 ///
 /// Returns an error string when node ids are duplicated, dependencies are missing,
 /// or the graph contains cycles. Concurrency limits are not considered here.
-pub fn render_workflow_plan(workflow : Workflow) -> String {
-  if workflow.nodes.is_empty() {
+pub fn Workflow::render_plan(self : Workflow) -> String {
+  if self.nodes.is_empty() {
     return "(no workflow nodes)"
   }
   let node_map : Map[ID, TaskNode] = {}
   let dependents : Map[ID, Array[ID]] = {}
   let remaining : Map[ID, Int] = {}
-  for node in workflow.nodes {
+  for node in self.nodes {
     if node_map.get(node.id) is Some(_) {
       return "ERROR: Duplicate node id: \{node.id.to_string()}"
     }
     node_map[node.id] = node
     remaining[node.id] = node.deps.length()
   }
-  for node in workflow.nodes {
+  for node in self.nodes {
     for dep in node.deps {
       if node_map.get(dep) is None {
         return "ERROR: Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})"
@@ -296,13 +296,13 @@ pub fn render_workflow_plan(workflow : Workflow) -> String {
     }
   }
   let mut ready : Array[ID] = []
-  for node in workflow.nodes {
+  for node in self.nodes {
     if remaining.get(node.id).unwrap_or(0) == 0 {
       ready.push(node.id)
     }
   }
   let lines : Array[String] = []
-  let total = workflow.nodes.length()
+  let total = self.nodes.length()
   let mut completed = 0
   let mut wave_index = 1
   while !ready.is_empty() {

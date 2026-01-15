@@ -18,7 +18,7 @@ workflow in human-readable form for logs, plans, or quick inspections.
 
 - `describe_workflow` prints a summary of agents and node dependencies.
 - `Workflow::render_dag` draws an ASCII DAG using node ids.
-- `render_workflow_plan` produces topological "waves" and reports obvious graph errors.
+- `Workflow::render_plan` produces topological "waves" and reports obvious graph errors.
 
 ## Example
 
@@ -45,12 +45,12 @@ test {
     ),
   ]
   let workflow = @dag.Workflow::new([agent], nodes)
-  let plan = @dag.render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(plan, content="Wave 1: prep\nWave 2: ship")
 }
 ```
 
 ## Notes
 
-- `render_workflow_plan` returns an error string on duplicate ids, missing deps, or cycles.
+- `Workflow::render_plan` returns an error string on duplicate ids, missing deps, or cycles.
 - `Workflow::render_dag` assumes dependencies exist and does not validate the graph.

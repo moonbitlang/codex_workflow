@@ -38,7 +38,7 @@ test "describe_workflow formats output" {
 ///|
 test "render_workflow_plan returns waves" {
   let workflow = simple_workflow()
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(plan, content="Wave 1: step1\nWave 2: step2")
 }
 
@@ -49,7 +49,7 @@ test "render_workflow_plan detects duplicate ids" {
     TaskNode::new("dup", "Second", [], "agent", "second"),
   ])
   inspect(
-    render_workflow_plan(workflow),
+    workflow.render_plan(),
     content="ERROR: Duplicate node id: dup",
   )
 }
@@ -60,7 +60,7 @@ test "render_workflow_plan detects missing deps" {
     TaskNode::new("only", "Only", [ID::new("missing")], "agent", "do"),
   ])
   inspect(
-    render_workflow_plan(workflow),
+    workflow.render_plan(),
     content="ERROR: Unknown dependency: missing (required by only)",
   )
 }
@@ -72,7 +72,7 @@ test "render_workflow_plan detects cycles" {
     TaskNode::new("b", "B", [ID::new("a")], "agent", "b"),
   ])
   inspect(
-    render_workflow_plan(workflow),
+    workflow.render_plan(),
     content="ERROR: Workflow did not complete (0/2). Check for cycles or missing deps.",
   )
 }
@@ -150,7 +150,7 @@ test "sample workflows reference declared agents" {
 test "sample workflow plans" {
   let mut kickoff_plan = "<missing>"
   match sample_workflow("kickoff") {
-    Some(workflow) => kickoff_plan = render_workflow_plan(workflow)
+    Some(workflow) => kickoff_plan = workflow.render_plan()
     None => ()
   }
   inspect(
@@ -159,7 +159,7 @@ test "sample workflow plans" {
   )
   let mut review_plan = "<missing>"
   match sample_workflow("review") {
-    Some(workflow) => review_plan = render_workflow_plan(workflow)
+    Some(workflow) => review_plan = workflow.render_plan()
     None => ()
   }
   inspect(
@@ -250,7 +250,7 @@ test "render_workflow_dag deep chain" {
     TaskNode::new("n5", "N5", [ID::new("n4")], "agent", "5"),
   ])
   let dag = workflow.render_dag()
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(
     plan,
     content="Wave 1: n1\nWave 2: n2\nWave 3: n3\nWave 4: n4\nWave 5: n5",
@@ -280,7 +280,7 @@ test "render_workflow_plan parallel wide" {
     TaskNode::new("p3", "P3", [], "agent", "3"),
     TaskNode::new("p4", "P4", [], "agent", "4"),
   ])
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(plan, content="Wave 1: p1, p2, p3, p4")
   inspect(workflow.render_dag(), content="p1    p2    p3    p4")
 }
@@ -298,7 +298,7 @@ test "render_workflow_plan single node" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("only", "Only", [], "agent", "only"),
   ])
-  inspect(render_workflow_plan(workflow), content="Wave 1: only")
+  inspect(workflow.render_plan(), content="Wave 1: only")
 }
 
 // --- Complex workflow visualization tests ---
@@ -351,7 +351,7 @@ test "render_dag complex multi-layer" {
   inspect(dag.contains("E"), content="true")
   inspect(dag.contains("final"), content="true")
   // Verify correct wave structure
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(
     plan,
     content="Wave 1: start\nWave 2: A, B, C\nWave 3: merge1\nWave 4: D, E\nWave 5: final",
@@ -415,7 +415,7 @@ test "render_dag parallel chains with collector" {
     ),
   )
   // Verify execution plan
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(
     plan,
     content="Wave 1: c1a, c2a, c3a\nWave 2: c1b, c2b, c3b\nWave 3: c1c, c2c, c3c\nWave 4: collect",
@@ -466,7 +466,7 @@ test "render_dag cross dependencies" {
     ),
   )
   // Verify execution plan
-  let plan = render_workflow_plan(workflow)
+  let plan = workflow.render_plan()
   inspect(plan, content="Wave 1: A, B\nWave 2: C, D\nWave 3: end")
 }
 

@@ -56,7 +56,7 @@ async fn main {
       Some(prepared) => {
         if wants_plan {
           @stdio.stdout.write("Plan for package reviews:\n")
-          @stdio.stdout.write(@dag.render_workflow_plan(prepared.workflow()))
+          @stdio.stdout.write(prepared.workflow().render_plan())
           @stdio.stdout.write("\n")
         }
         if wants_dag {
@@ -103,7 +103,7 @@ async fn main {
       Some(workflow) => {
         if wants_plan {
           @stdio.stdout.write("Plan for '\{sample}':\n")
-          @stdio.stdout.write(@dag.render_workflow_plan(workflow))
+          @stdio.stdout.write(workflow.render_plan())
           @stdio.stdout.write("\n")
         }
         if wants_dag {
