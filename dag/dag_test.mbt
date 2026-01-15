@@ -6,7 +6,13 @@ fn simple_workflow() -> Workflow {
   ]
   let nodes = [
     TaskNode::new("step1", "First", [], "planner", "Plan the work."),
-    TaskNode::new("step2", "Second", [ID::new("step1")], "writer", "Write the output."),
+    TaskNode::new(
+      "step2",
+      "Second",
+      [ID::new("step1")],
+      "writer",
+      "Write the output.",
+    ),
   ]
   Workflow::new(agents, nodes)
 }
@@ -202,7 +208,13 @@ test "render_workflow_dag wide fan-in" {
     TaskNode::new("a", "A", [], "agent", "a"),
     TaskNode::new("b", "B", [], "agent", "b"),
     TaskNode::new("c", "C", [], "agent", "c"),
-    TaskNode::new("merge", "Merge", [ID::new("a"), ID::new("b"), ID::new("c")], "agent", "merge"),
+    TaskNode::new(
+      "merge",
+      "Merge",
+      [ID::new("a"), ID::new("b"), ID::new("c")],
+      "agent",
+      "merge",
+    ),
   ])
   let dag = workflow.render_dag()
   inspect(dag.contains("merge"), content="true")
@@ -257,7 +269,6 @@ test "render_workflow_dag deep chain" {
       #|n5
     ),
   )
-  
 }
 
 ///|
@@ -312,10 +323,22 @@ test "render_dag complex multi-layer" {
     TaskNode::new("A", "Branch A", [ID::new("start")], "agent", "a"),
     TaskNode::new("B", "Branch B", [ID::new("start")], "agent", "b"),
     TaskNode::new("C", "Branch C", [ID::new("start")], "agent", "c"),
-    TaskNode::new("merge1", "Merge 1", [ID::new("A"), ID::new("B"), ID::new("C")], "agent", "merge1"),
+    TaskNode::new(
+      "merge1",
+      "Merge 1",
+      [ID::new("A"), ID::new("B"), ID::new("C")],
+      "agent",
+      "merge1",
+    ),
     TaskNode::new("D", "Branch D", [ID::new("merge1")], "agent", "d"),
     TaskNode::new("E", "Branch E", [ID::new("merge1")], "agent", "e"),
-    TaskNode::new("final", "Final", [ID::new("D"), ID::new("E")], "agent", "final"),
+    TaskNode::new(
+      "final",
+      "Final",
+      [ID::new("D"), ID::new("E")],
+      "agent",
+      "final",
+    ),
   ])
   let dag = workflow.render_dag()
   // Verify all nodes are present
@@ -363,13 +386,34 @@ test "render_dag parallel chains with collector" {
     TaskNode::new("c3b", "Chain3 B", [ID::new("c3a")], "agent", "c3b"),
     TaskNode::new("c3c", "Chain3 C", [ID::new("c3b")], "agent", "c3c"),
     // Collector
-    TaskNode::new("collect", "Collector", [ID::new("c1c"), ID::new("c2c"), ID::new("c3c")], "agent", "collect"),
+    TaskNode::new(
+      "collect",
+      "Collector",
+      [ID::new("c1c"), ID::new("c2c"), ID::new("c3c")],
+      "agent",
+      "collect",
+    ),
   ])
   let dag = workflow.render_dag()
   // Verify all nodes present
-  for name in ["c1a", "c1b", "c1c", "c2a", "c2b", "c2c", "c3a", "c3b", "c3c", "collect"] {
+  for
+    name in [
+      "c1a", "c1b", "c1c", "c2a", "c2b", "c2c", "c3a", "c3b", "c3c", "collect",
+    ] {
     inspect(dag.contains(name), content="true")
   }
+  inspect(
+    dag,
+    content=(
+      #|c1a    c2a    c3a
+      #| v      v      v
+      #|c1b    c2b    c3b
+      #| v      v      v
+      #|c1c    c2c    c3c
+      #| +------v------+
+      #|     collect
+    ),
+  )
   // Verify execution plan
   let plan = render_workflow_plan(workflow)
   inspect(
@@ -411,6 +455,16 @@ test "render_dag cross dependencies" {
   inspect(dag.contains("C"), content="true")
   inspect(dag.contains("D"), content="true")
   inspect(dag.contains("end"), content="true")
+  inspect(
+    dag,
+    content=(
+      #|A    B
+      #|+-v--+-v
+      #|  C    D
+      #|  +-v--+
+      #|   end
+    ),
+  )
   // Verify execution plan
   let plan = render_workflow_plan(workflow)
   inspect(plan, content="Wave 1: A, B\nWave 2: C, D\nWave 3: end")
@@ -421,8 +475,20 @@ test "render_dag cross dependencies" {
 test "render_dag long node names" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("initialization", "Init", [], "agent", "init"),
-    TaskNode::new("processing", "Process", [ID::new("initialization")], "agent", "process"),
-    TaskNode::new("finalization", "Final", [ID::new("processing")], "agent", "final"),
+    TaskNode::new(
+      "processing",
+      "Process",
+      [ID::new("initialization")],
+      "agent",
+      "process",
+    ),
+    TaskNode::new(
+      "finalization",
+      "Final",
+      [ID::new("processing")],
+      "agent",
+      "final",
+    ),
   ])
   let dag = workflow.render_dag()
   // Verify all nodes are present with their full names

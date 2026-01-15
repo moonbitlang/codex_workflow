@@ -44,13 +44,7 @@ pub fn TaskNode::new(
   agent : String,
   prompt : String,
 ) -> TaskNode {
-  TaskNode::{
-    id: ID(id),
-    title,
-    deps: deps,
-    agent: AgentID(agent),
-    prompt,
-  }
+  TaskNode::{ id: ID(id), title, deps, agent: AgentID(agent), prompt }
 }
 
 ///|
