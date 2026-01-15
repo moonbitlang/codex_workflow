@@ -13,7 +13,6 @@ workflow in human-readable form for logs, plans, or quick inspections.
 - `AgentSpec` configures a named agent (role, model override, sandbox mode, and working directory).
 - `TaskNode` defines a unit of work with dependencies and a prompt.
 - `Workflow` bundles agents and nodes into a DAG definition.
-- `RunOptions` provides execution defaults for orchestration runners.
 
 ## Rendering helpers
 

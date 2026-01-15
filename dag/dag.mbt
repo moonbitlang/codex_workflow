@@ -75,32 +75,6 @@ pub fn Workflow::new(
 }
 
 ///|
-/// Options that control workflow execution.
-///
-/// `concurrency` caps how many nodes can run in parallel per wave.
-/// `working_directory` is the default repo root for all agents.
-/// `default_sandbox` and `default_model` apply when agents do not override them.
-pub struct RunOptions {
-  concurrency : Int
-  working_directory : String
-  default_sandbox : @codex.SandboxMode
-  default_model : String?
-}
-
-///|
-/// Create run options with defaults for sandbox and model.
-///
-/// `default_sandbox` defaults to `ReadOnly` when not provided.
-pub fn RunOptions::new(
-  working_directory : String,
-  concurrency : Int,
-  default_sandbox? : @codex.SandboxMode = @codex.SandboxMode::ReadOnly,
-  default_model? : String,
-) -> RunOptions {
-  RunOptions::{ concurrency, working_directory, default_sandbox, default_model }
-}
-
-///|
 /// Describe the workflow structure for humans.
 ///
 /// Returns a multi-line summary including the agent list and node dependencies.

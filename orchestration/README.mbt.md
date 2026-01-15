@@ -9,6 +9,7 @@ concurrency limits, and collecting each node's final response.
 
 ## Public API
 
+- `RunOptions` configures execution parameters (concurrency, working directory, defaults).
 - `run_workflow` executes a workflow and returns node outputs.
 
 ## Example: running a workflow
@@ -17,7 +18,7 @@ concurrency limits, and collecting each node's final response.
 async fn run {
   match @dag.sample_workflow("kickoff") {
     Some(workflow) => {
-      let options = @dag.RunOptions::new(".", 2)
+      let options = @orchestration.RunOptions::new(".", 2)
       let codex = @codex.Codex::new()
       let outputs = @orchestration.run_workflow(
         workflow,

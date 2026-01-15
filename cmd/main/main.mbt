@@ -69,7 +69,7 @@ async fn main {
         }
         // Run the workflow
         let codex = @codex.Codex::new()
-        let run_options = @dag.RunOptions::new(
+        let run_options = @orchestration.RunOptions::new(
           prepared.repo_path(),
           concurrency,
           default_sandbox=@codex.SandboxMode::WorkspaceWrite,
@@ -123,7 +123,7 @@ async fn main {
   }
   let concurrency = parse_concurrency(args.options.get("concurrency"), 2)
   let workdir = args.options.get("workdir").unwrap_or(".")
-  let options = @dag.RunOptions::new(
+  let options = @orchestration.RunOptions::new(
     workdir,
     concurrency,
     default_sandbox=@codex.SandboxMode::ReadOnly,

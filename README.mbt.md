@@ -32,8 +32,8 @@ This library provides a DAG-based workflow execution engine for orchestrating mu
 
 - `workflow/` — Library package containing core types and runner
   - `agent.mbt` — `AgentSpec` type for agent configuration
-  - `dag.mbt` — `TaskNode`, `Workflow`, `RunOptions` types and DAG utilities
-  - `runner.mbt` — Async workflow execution engine
+  - `dag.mbt` — `TaskNode`, `Workflow` types and DAG utilities
+  - `runner.mbt` — Async workflow execution engine with `RunOptions`
   - `sample.mbt` — Built-in sample workflows
 - `cmd/main/` — CLI entrypoint
   - `main.mbt` — Argument parsing and command dispatch
@@ -82,7 +82,7 @@ pub struct Workflow {
 
 ### RunOptions
 
-Configuration for workflow execution:
+Configuration for workflow execution (defined in `orchestration` package):
 
 ```moonbit
 pub struct RunOptions {
@@ -101,9 +101,9 @@ pub struct RunOptions {
 /// Execute a workflow DAG using the configured agents.
 /// Returns a map of task IDs to their output strings.
 pub async fn run_workflow(
-  workflow : Workflow,
+  workflow : @dag.Workflow,
   codex : @codex.Codex,
-  options : RunOptions,
+  options : @orchestration.RunOptions,
 ) -> Map[String, String]
 ```
 
