@@ -92,6 +92,60 @@ test "render_workflow_dag empty" {
   inspect(workflow.render_dag(), content="(no workflow nodes)")
 }
 
+// --- Graph building tests ---
+
+///|
+test "build_graph creates valid graph" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("a", "A", [], "agent", "a"),
+    TaskNode::new("b", "B", [ID::new("a")], "agent", "b"),
+    TaskNode::new("c", "C", [ID::new("a"), ID::new("b")], "agent", "c"),
+  ])
+  let graph = workflow.build_graph()
+  // Check nodes are indexed
+  inspect(graph.nodes.length(), content="3")
+  inspect(graph.nodes.get(ID::new("a")) is Some(_), content="true")
+  inspect(graph.nodes.get(ID::new("b")) is Some(_), content="true")
+  inspect(graph.nodes.get(ID::new("c")) is Some(_), content="true")
+  // Check dependents (reverse dependencies)
+  inspect(graph.dependents.get_or_default(ID::new("a"), []).length(), content="2") // a -> b, c
+  inspect(graph.dependents.get_or_default(ID::new("b"), []).length(), content="1") // b -> c
+  inspect(graph.dependents.get_or_default(ID::new("c"), []).length(), content="0") // c has no dependents
+  // Check remaining counts
+  inspect(graph.remaining.get_or_default(ID::new("a"), -1), content="0") // a has 0 deps
+  inspect(graph.remaining.get_or_default(ID::new("b"), -1), content="1") // b has 1 dep
+  inspect(graph.remaining.get_or_default(ID::new("c"), -1), content="2") // c has 2 deps
+}
+
+///|
+test "build_graph detects duplicate ids" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("dup", "First", [], "agent", "first"),
+    TaskNode::new("dup", "Second", [], "agent", "second"),
+  ])
+  let mut error_msg = ""
+  try {
+    let _ = workflow.build_graph()
+  } catch {
+    e => error_msg = e.to_string()
+  }
+  inspect(error_msg.contains("Duplicate node id: dup"), content="true")
+}
+
+///|
+test "build_graph detects missing deps" {
+  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+    TaskNode::new("only", "Only", [ID::new("missing")], "agent", "do"),
+  ])
+  let mut error_msg = ""
+  try {
+    let _ = workflow.build_graph()
+  } catch {
+    e => error_msg = e.to_string()
+  }
+  inspect(error_msg.contains("Unknown dependency: missing"), content="true")
+}
+
 // --- Sample workflow tests ---
 
 ///|

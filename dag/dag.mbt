@@ -69,6 +69,48 @@ pub fn Workflow::new(
 }
 
 ///|
+/// Dependency graph for workflow execution and analysis.
+///
+/// Contains indexed nodes, reverse dependency mapping (dependents),
+/// and remaining dependency counts for topological traversal.
+pub struct Graph {
+  nodes : Map[ID, TaskNode]
+  dependents : Map[ID, Array[ID]]
+  remaining : Map[ID, Int]
+}
+
+///|
+/// Build the dependency graph for workflow execution.
+///
+/// Validates that all node IDs are unique and all dependencies exist.
+/// Returns a Graph that can be used for execution or analysis.
+pub fn Workflow::build_graph(self : Workflow) -> Graph raise {
+  let nodes : Map[ID, TaskNode] = {}
+  let dependents : Map[ID, Array[ID]] = {}
+  let remaining : Map[ID, Int] = {}
+  for node in self.nodes {
+    if nodes.get(node.id) is Some(_) {
+      @error.fail("Duplicate node id: \{node.id.to_string()}")
+    }
+    nodes[node.id] = node
+    remaining[node.id] = node.deps.length()
+  }
+  for node in self.nodes {
+    for dep in node.deps {
+      if nodes.get(dep) is None {
+        @error.fail(
+          "Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})",
+        )
+      }
+      let list = dependents.get_or_default(dep, [])
+      list.push(node.id)
+      dependents[dep] = list
+    }
+  }
+  { nodes, dependents, remaining }
+}
+
+///|
 /// Describe the workflow structure for humans.
 ///
 /// Returns a multi-line summary including the agent list and node dependencies.
@@ -106,7 +148,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   }
   for node in self.nodes {
     for dep in node.deps {
-      let list = children.get(dep).unwrap_or([])
+      let list = children.get_or_default(dep, [])
       list.push(node.id)
       children[dep] = list
     }
@@ -117,7 +159,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   }
   let queue : Array[ID] = []
   for node in self.nodes {
-    if indegree.get(node.id).unwrap_or(0) == 0 {
+    if indegree.get_or_default(node.id, 0) == 0 {
       queue.push(node.id)
     }
   }
@@ -125,9 +167,9 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   for idx = 0; idx < queue.length(); {
     let node_id = queue[idx]
     topo.push(node_id)
-    let kids = children.get(node_id).unwrap_or([])
+    let kids = children.get_or_default(node_id, [])
     for child_id in kids {
-      let next = indegree.get(child_id).unwrap_or(0) - 1
+      let next = indegree.get_or_default(child_id, 0) - 1
       indegree[child_id] = next
       if next == 0 {
         queue.push(child_id)
@@ -143,7 +185,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     if node_map.get(node_id) is Some(node) {
       let mut best = 0
       for dep in node.deps {
-        let candidate = level.get(dep).unwrap_or(0) + 1
+        let candidate = level.get_or_default(dep, 0) + 1
         if candidate > best {
           best = candidate
         }
@@ -158,7 +200,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     if level.get(node.id) is None {
       level[node.id] = 0
     }
-    let current = level.get(node.id).unwrap_or(0)
+    let current = level.get_or_default(node.id, 0)
     if current > max_level {
       max_level = current
     }
@@ -168,7 +210,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     ids
   })
   for node in self.nodes {
-    let depth = level.get(node.id).unwrap_or(0)
+    let depth = level.get_or_default(node.id, 0)
     nodes_by_level[depth].push(node.id)
   }
   let label_len : Map[ID, Int] = {}
@@ -184,7 +226,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     let mut prev_len = 0
     let mut first = true
     for node_id in ids {
-      let len = label_len.get(node_id).unwrap_or(0)
+      let len = label_len.get_or_default(node_id, 0)
       let mut parents : Array[ID] = []
       if node_map.get(node_id) is Some(node) {
         parents = node.deps
@@ -193,7 +235,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
       if !parents.is_empty() {
         let mut sum = 0
         for parent in parents {
-          sum = sum + anchors.get(parent).unwrap_or(0)
+          sum = sum + anchors.get_or_default(parent, 0)
         }
         base_anchor = sum / parents.length()
       } else if !first {
@@ -223,8 +265,8 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   }
   let mut width = 0
   for node in self.nodes {
-    let start = positions.get(node.id).unwrap_or(0)
-    let len = label_len.get(node.id).unwrap_or(0)
+    let start = positions.get_or_default(node.id, 0)
+    let len = label_len.get_or_default(node.id, 0)
     let end = start + len
     if end > width {
       width = end
@@ -239,12 +281,12 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     if node.deps.is_empty() {
       continue
     }
-    let depth = level.get(node.id).unwrap_or(0)
+    let depth = level.get_or_default(node.id, 0)
     if depth == 0 {
       continue
     }
     let row = depth * 2 - 1
-    let child_anchor = anchors.get(node.id).unwrap_or(0)
+    let child_anchor = anchors.get_or_default(node.id, 0)
     for parent in node.deps {
       let parent_anchor = anchors.get(parent).unwrap_or(child_anchor)
       draw_hline(canvas, row, parent_anchor, child_anchor)
@@ -253,9 +295,9 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     canvas.set(child_anchor, row, 'v')
   }
   for node in self.nodes {
-    let depth = level.get(node.id).unwrap_or(0)
+    let depth = level.get_or_default(node.id, 0)
     let row = depth * 2
-    let start = positions.get(node.id).unwrap_or(0)
+    let start = positions.get_or_default(node.id, 0)
     draw_label(canvas, start, row, node.id.to_string())
   }
   let lines : Array[String] = []
@@ -290,14 +332,14 @@ pub fn Workflow::render_plan(self : Workflow) -> String {
       if node_map.get(dep) is None {
         return "ERROR: Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})"
       }
-      let list = dependents.get(dep).unwrap_or([])
+      let list = dependents.get_or_default(dep, [])
       list.push(node.id)
       dependents[dep] = list
     }
   }
   let mut ready : Array[ID] = []
   for node in self.nodes {
-    if remaining.get(node.id).unwrap_or(0) == 0 {
+    if remaining.get_or_default(node.id, 0) == 0 {
       ready.push(node.id)
     }
   }
@@ -313,9 +355,9 @@ pub fn Workflow::render_plan(self : Workflow) -> String {
     let next_ready : Array[ID] = []
     for node_id in wave {
       completed = completed + 1
-      let children = dependents.get(node_id).unwrap_or([])
+      let children = dependents.get_or_default(node_id, [])
       for child in children {
-        let next = remaining.get(child).unwrap_or(0) - 1
+        let next = remaining.get_or_default(child, 0) - 1
         remaining[child] = next
         if next == 0 {
           next_ready.push(child)

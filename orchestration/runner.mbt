@@ -25,14 +25,6 @@ pub fn RunOptions::new(
 }
 
 ///|
-/// Internal dependency tracking for wave execution.
-priv struct Graph {
-  nodes : Map[@dag.ID, @dag.TaskNode]
-  dependents : Map[@dag.ID, Array[@dag.ID]]
-  remaining : Map[@dag.ID, Int]
-}
-
-///|
 /// Execute a workflow DAG using the configured agents.
 ///
 /// Nodes run in dependency waves. Each wave runs with a concurrency cap from
@@ -50,7 +42,7 @@ pub async fn run_workflow(
     return {}
   }
   let agent_map = build_agent_map(workflow)
-  let graph = build_graph(workflow)
+  let graph = workflow.build_graph()
   let mut ready : Array[@dag.ID] = []
   for node in workflow.nodes {
     if node.deps.is_empty() {
@@ -100,9 +92,9 @@ pub async fn run_workflow(
       let (node_id, output) = node_result
       results[node_id] = output
       completed = completed + 1
-      let children = graph.dependents.get(node_id).unwrap_or([])
+      let children = graph.dependents.get_or_default(node_id, [])
       for child in children {
-        let remaining = graph.remaining.get(child).unwrap_or(0) - 1
+        let remaining = graph.remaining.get_or_default(child, 0) - 1
         graph.remaining[child] = remaining
         if remaining == 0 {
           next_ready.push(child)
@@ -185,34 +177,6 @@ fn build_agent_map(
     agent_map[agent.name] = agent
   }
   agent_map
-}
-
-///|
-/// Build the dependency graph for workflow execution.
-fn build_graph(workflow : @dag.Workflow) -> Graph raise {
-  let nodes : Map[@dag.ID, @dag.TaskNode] = {}
-  let dependents : Map[@dag.ID, Array[@dag.ID]] = {}
-  let remaining : Map[@dag.ID, Int] = {}
-  for node in workflow.nodes {
-    if nodes.get(node.id) is Some(_) {
-      @error.fail("Duplicate node id: \{node.id.to_string()}")
-    }
-    nodes[node.id] = node
-    remaining[node.id] = node.deps.length()
-  }
-  for node in workflow.nodes {
-    for dep in node.deps {
-      if nodes.get(dep) is None {
-        @error.fail(
-          "Unknown dependency: \{dep.to_string()} (required by \{node.id.to_string()})",
-        )
-      }
-      let list = dependents.get(dep).unwrap_or([])
-      list.push(node.id)
-      dependents[dep] = list
-    }
-  }
-  { nodes, dependents, remaining }
 }
 
 ///|
