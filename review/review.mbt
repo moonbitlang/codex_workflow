@@ -429,7 +429,7 @@ fn build_review_workflow(
         )
     }
     agents.push(agent)
-    let deps : Array[String] = []
+    let deps : Array[@dag.ID] = []
     nodes.push(
       @dag.TaskNode::new(
         review.task_id,

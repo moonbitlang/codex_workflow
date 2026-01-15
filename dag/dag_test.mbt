@@ -6,7 +6,7 @@ fn simple_workflow() -> Workflow {
   ]
   let nodes = [
     TaskNode::new("step1", "First", [], "planner", "Plan the work."),
-    TaskNode::new("step2", "Second", ["step1"], "writer", "Write the output."),
+    TaskNode::new("step2", "Second", [ID::new("step1")], "writer", "Write the output."),
   ]
   Workflow::new(agents, nodes)
 }
@@ -51,7 +51,7 @@ test "render_workflow_plan detects duplicate ids" {
 ///|
 test "render_workflow_plan detects missing deps" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("only", "Only", ["missing"], "agent", "do"),
+    TaskNode::new("only", "Only", [ID::new("missing")], "agent", "do"),
   ])
   inspect(
     render_workflow_plan(workflow),
@@ -62,8 +62,8 @@ test "render_workflow_plan detects missing deps" {
 ///|
 test "render_workflow_plan detects cycles" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("a", "A", ["b"], "agent", "a"),
-    TaskNode::new("b", "B", ["a"], "agent", "b"),
+    TaskNode::new("a", "A", [ID::new("b")], "agent", "a"),
+    TaskNode::new("b", "B", [ID::new("a")], "agent", "b"),
   ])
   inspect(
     render_workflow_plan(workflow),
@@ -75,7 +75,7 @@ test "render_workflow_plan detects cycles" {
 test "render_workflow_dag renders chain" {
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("alpha", "Alpha", [], "agent", "a"),
-    TaskNode::new("beta", "Beta", ["alpha"], "agent", "b"),
+    TaskNode::new("beta", "Beta", [ID::new("alpha")], "agent", "b"),
   ])
   inspect(render_workflow_dag(workflow), content="alpha\n  v\nbeta")
 }
@@ -169,9 +169,9 @@ test "render_workflow_dag diamond pattern" {
   // Tests a diamond DAG: A -> B, A -> C, B -> D, C -> D
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("A", "Start", [], "agent", "start"),
-    TaskNode::new("B", "Left", ["A"], "agent", "left"),
-    TaskNode::new("C", "Right", ["A"], "agent", "right"),
-    TaskNode::new("D", "End", ["B", "C"], "agent", "end"),
+    TaskNode::new("B", "Left", [ID::new("A")], "agent", "left"),
+    TaskNode::new("C", "Right", [ID::new("A")], "agent", "right"),
+    TaskNode::new("D", "End", [ID::new("B"), ID::new("C")], "agent", "end"),
   ])
   let dag = render_workflow_dag(workflow)
   // Verify it contains the expected node labels
@@ -202,7 +202,7 @@ test "render_workflow_dag wide fan-in" {
     TaskNode::new("a", "A", [], "agent", "a"),
     TaskNode::new("b", "B", [], "agent", "b"),
     TaskNode::new("c", "C", [], "agent", "c"),
-    TaskNode::new("merge", "Merge", ["a", "b", "c"], "agent", "merge"),
+    TaskNode::new("merge", "Merge", [ID::new("a"), ID::new("b"), ID::new("c")], "agent", "merge"),
   ])
   let dag = render_workflow_dag(workflow)
   inspect(dag.contains("merge"), content="true")
@@ -216,9 +216,9 @@ test "render_workflow_dag fan-out" {
   // Tests a node with many dependents (fan-out)
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("root", "Root", [], "agent", "root"),
-    TaskNode::new("child1", "C1", ["root"], "agent", "c1"),
-    TaskNode::new("child2", "C2", ["root"], "agent", "c2"),
-    TaskNode::new("child3", "C3", ["root"], "agent", "c3"),
+    TaskNode::new("child1", "C1", [ID::new("root")], "agent", "c1"),
+    TaskNode::new("child2", "C2", [ID::new("root")], "agent", "c2"),
+    TaskNode::new("child3", "C3", [ID::new("root")], "agent", "c3"),
   ])
   let dag = render_workflow_dag(workflow)
   inspect(dag.contains("root"), content="true")
@@ -232,10 +232,10 @@ test "render_workflow_dag deep chain" {
   // Tests a long linear chain
   let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
     TaskNode::new("n1", "N1", [], "agent", "1"),
-    TaskNode::new("n2", "N2", ["n1"], "agent", "2"),
-    TaskNode::new("n3", "N3", ["n2"], "agent", "3"),
-    TaskNode::new("n4", "N4", ["n3"], "agent", "4"),
-    TaskNode::new("n5", "N5", ["n4"], "agent", "5"),
+    TaskNode::new("n2", "N2", [ID::new("n1")], "agent", "2"),
+    TaskNode::new("n3", "N3", [ID::new("n2")], "agent", "3"),
+    TaskNode::new("n4", "N4", [ID::new("n3")], "agent", "4"),
+    TaskNode::new("n5", "N5", [ID::new("n4")], "agent", "5"),
   ])
   let dag = render_workflow_dag(workflow)
   let plan = render_workflow_plan(workflow)

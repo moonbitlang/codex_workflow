@@ -40,14 +40,14 @@ pub struct TaskNode {
 pub fn TaskNode::new(
   id : String,
   title : String,
-  deps : Array[String],
+  deps : Array[ID],
   agent : String,
   prompt : String,
 ) -> TaskNode {
   TaskNode::{
     id: ID(id),
     title,
-    deps: deps.map(fn(d) { ID(d) }),
+    deps: deps,
     agent: AgentID(agent),
     prompt,
   }

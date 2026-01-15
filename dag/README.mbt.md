@@ -40,7 +40,7 @@ test {
     @dag.TaskNode::new(
       "ship",
       "Delivery",
-      ["prep"],
+      [@dag.ID::new("prep")],
       "planner",
       "Summarize the planned work in 3 bullets.",
     ),

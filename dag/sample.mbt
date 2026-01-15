@@ -72,14 +72,14 @@ fn kickoff_workflow() -> Workflow {
     TaskNode::new(
       "workflow_plan",
       "Workflow plan",
-      ["repo_overview", "requirements"],
+      [ID::new("repo_overview"), ID::new("requirements")],
       "planner",
       "Propose a minimal 3-step workflow DAG based on the inputs.",
     ),
     TaskNode::new(
       "final_brief",
       "Final brief",
-      ["workflow_plan"],
+      [ID::new("workflow_plan")],
       "writer",
       "Summarize the workflow plan in 5 lines for a status update.",
     ),
@@ -120,7 +120,7 @@ fn review_workflow() -> Workflow {
     TaskNode::new(
       "review_summary",
       "Review summary",
-      ["readme_scan", "cli_scan"],
+      [ID::new("readme_scan"), ID::new("cli_scan")],
       "scribe",
       "Summarize the review findings and suggest one next action.",
     ),
