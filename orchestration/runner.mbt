@@ -153,10 +153,10 @@ fn build_prompt(
   if node.deps.is_empty() {
     return prompt
   }
-  prompt = prompt + "\n\nDependency outputs:\n"
+  prompt += "\n\nDependency outputs:\n"
   for dep in node.deps {
     let dep_output = results.get(dep).unwrap_or("<missing output>")
-    prompt = prompt + "- " + dep.to_string() + ":\n" + dep_output + "\n"
+    prompt += "- \{dep}:\{dep_output}\n"
   }
   prompt
 }
