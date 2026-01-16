@@ -4,7 +4,11 @@
 /// The current samples are `"kickoff"` (planning + summary) and `"review"`
 /// (lightweight repo review).
 pub fn sample_workflows() -> Array[(String, Workflow)] {
-  [("kickoff", kickoff_workflow()), ("review", review_workflow())]
+  [
+    ("kickoff", kickoff_workflow()),
+    ("review", review_workflow()),
+    ("incremental_merge", incremental_merge_workflow()),
+  ]
 }
 
 ///|
@@ -123,6 +127,107 @@ fn review_workflow() -> Workflow {
       [ID::new("readme_scan"), ID::new("cli_scan")],
       "scribe",
       "Summarize the review findings and suggest one next action.",
+    ),
+  ]
+  Workflow::new(agents, nodes)
+}
+
+///|
+/// Build the "incremental_merge" workflow used to demo serialized merges.
+fn incremental_merge_workflow() -> Workflow {
+  let agents = [
+    AgentSpec::new(
+      "dispatcher",
+      "Dispatch work and summarize final results.",
+      sandbox_mode=@codex.SandboxMode::ReadOnly,
+    ),
+    AgentSpec::new(
+      "worker",
+      "Produce a small result for a single job.",
+      sandbox_mode=@codex.SandboxMode::ReadOnly,
+    ),
+    AgentSpec::new(
+      "merger",
+      "Merge worker outputs one at a time.",
+      sandbox_mode=@codex.SandboxMode::ReadOnly,
+      max_concurrency=1,
+    ),
+  ]
+  let nodes = [
+    TaskNode::new(
+      "dispatch",
+      "Dispatch jobs",
+      [],
+      "dispatcher",
+      "List 4 job labels as: job1, job2, job3, job4.",
+    ),
+    TaskNode::new(
+      "job1",
+      "Worker job1",
+      [ID::new("dispatch")],
+      "worker",
+      "For job1, return two short sentences describing the result.",
+    ),
+    TaskNode::new(
+      "job2",
+      "Worker job2",
+      [ID::new("dispatch")],
+      "worker",
+      "For job2, return two short sentences describing the result.",
+    ),
+    TaskNode::new(
+      "job3",
+      "Worker job3",
+      [ID::new("dispatch")],
+      "worker",
+      "For job3, return two short sentences describing the result.",
+    ),
+    TaskNode::new(
+      "job4",
+      "Worker job4",
+      [ID::new("dispatch")],
+      "worker",
+      "For job4, return two short sentences describing the result.",
+    ),
+    TaskNode::new(
+      "merge_job1",
+      "Merge job1",
+      [ID::new("job1")],
+      "merger",
+      "Merge job1 into the running total. Output one sentence.",
+    ),
+    TaskNode::new(
+      "merge_job2",
+      "Merge job2",
+      [ID::new("job2")],
+      "merger",
+      "Merge job2 into the running total. Output one sentence.",
+    ),
+    TaskNode::new(
+      "merge_job3",
+      "Merge job3",
+      [ID::new("job3")],
+      "merger",
+      "Merge job3 into the running total. Output one sentence.",
+    ),
+    TaskNode::new(
+      "merge_job4",
+      "Merge job4",
+      [ID::new("job4")],
+      "merger",
+      "Merge job4 into the running total. Output one sentence.",
+    ),
+    TaskNode::new(
+      "merge_summary",
+      "Merge summary",
+      [
+        ID::new("merge_job1"),
+        ID::new("merge_job2"),
+        ID::new("merge_job3"),
+        ID::new("merge_job4"),
+      ],
+      "dispatcher",
+      "Summarize the merged work in 3 short bullets.",
     ),
   ]
   Workflow::new(agents, nodes)

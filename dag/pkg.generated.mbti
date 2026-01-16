@@ -8,10 +8,6 @@ import(
 // Values
 pub fn describe_workflow(Workflow) -> String
 
-pub fn render_workflow_dag(Workflow) -> String
-
-pub fn render_workflow_plan(Workflow) -> String
-
 pub fn sample_names() -> Array[String]
 
 pub fn sample_workflow(String) -> Workflow?
@@ -36,9 +32,16 @@ pub struct AgentSpec {
   model : String?
   sandbox_mode : @codex.SandboxMode?
   working_directory : String?
+  max_concurrency : Int?
 }
 pub fn AgentSpec::label(Self) -> String
-pub fn AgentSpec::new(String, String, model? : String, sandbox_mode? : @codex.SandboxMode, working_directory? : String) -> Self
+pub fn AgentSpec::new(String, String, model? : String, sandbox_mode? : @codex.SandboxMode, working_directory? : String, max_concurrency? : Int) -> Self
+
+pub struct Graph {
+  nodes : Map[ID, TaskNode]
+  dependents : Map[ID, Array[ID]]
+  remaining : Map[ID, Int]
+}
 
 pub struct ID(String)
 #deprecated
@@ -62,7 +65,10 @@ pub struct Workflow {
   agents : Array[AgentSpec]
   nodes : Array[TaskNode]
 }
+pub fn Workflow::build_graph(Self) -> Graph raise
 pub fn Workflow::new(Array[AgentSpec], Array[TaskNode]) -> Self
+pub fn Workflow::render_dag(Self) -> String
+pub fn Workflow::render_plan(Self) -> String
 
 // Type aliases
 

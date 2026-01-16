@@ -23,12 +23,14 @@ pub fn AgentID::to_string(self : AgentID) -> String {
 /// `name` must be unique within a workflow and is referenced by `TaskNode.agent`.
 /// `role` is included in prompts to describe the agent's responsibilities.
 /// Optional fields override values from `RunOptions` when they are present.
+/// `max_concurrency` caps how many nodes for this agent may run at once.
 pub struct AgentSpec {
   name : AgentID
   role : String
   model : String?
   sandbox_mode : @codex.SandboxMode?
   working_directory : String?
+  max_concurrency : Int?
 }
 
 ///|
@@ -36,12 +38,14 @@ pub struct AgentSpec {
 ///
 /// Omitted optional parameters default to `None`, which means `RunOptions`
 /// provides the effective model, sandbox mode, and working directory.
+/// When set, `max_concurrency` limits parallel runs for this agent.
 pub fn AgentSpec::new(
   name : String,
   role : String,
   model? : String,
   sandbox_mode? : @codex.SandboxMode,
   working_directory? : String,
+  max_concurrency? : Int,
 ) -> AgentSpec {
   AgentSpec::{
     name: AgentID(name),
@@ -49,6 +53,7 @@ pub fn AgentSpec::new(
     model,
     sandbox_mode,
     working_directory,
+    max_concurrency,
   }
 }
 

@@ -4,8 +4,8 @@ Workflow execution helpers that bind `@dag` to Codex runtime.
 
 ## Overview
 
-This package executes DAGs by running nodes in dependency waves, applying
-concurrency limits, and collecting each node's final response.
+This package executes DAGs by running nodes as soon as dependencies complete,
+applying concurrency limits, and collecting each node's final response.
 
 ## Public API
 
@@ -37,3 +37,4 @@ async fn run {
 - `run_workflow` logs progress to stdout/stderr.
 - Individual node failures become `"ERROR: ..."` outputs instead of halting the run.
 - Sample workflows are now in the `dag` package (`@dag.sample_workflow`, `@dag.sample_names`).
+- Per-agent concurrency caps are controlled via `AgentSpec.max_concurrency`.

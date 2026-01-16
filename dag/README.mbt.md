@@ -10,7 +10,7 @@ workflow in human-readable form for logs, plans, or quick inspections.
 
 ## Core types
 
-- `AgentSpec` configures a named agent (role, model override, sandbox mode, and working directory).
+- `AgentSpec` configures a named agent (role, model override, sandbox mode, working directory, and optional concurrency cap).
 - `TaskNode` defines a unit of work with dependencies and a prompt.
 - `Workflow` bundles agents and nodes into a DAG definition.
 
@@ -54,3 +54,4 @@ test {
 
 - `Workflow::render_plan` returns an error string on duplicate ids, missing deps, or cycles.
 - `Workflow::render_dag` assumes dependencies exist and does not validate the graph.
+- `AgentSpec.max_concurrency` lets a workflow serialize work per agent (for example, a merge agent).

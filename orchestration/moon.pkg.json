@@ -1,6 +1,7 @@
 {
   "import": [
     "moonbitlang/async",
+    "moonbitlang/async/aqueue",
     "moonbitlang/async/semaphore",
     "moonbitlang/async/stdio",
     "peter-jerry-ye/codex",

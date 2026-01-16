@@ -4,7 +4,7 @@ Multi-agent workflow runner for Codex, built in MoonBit.
 
 ## Overview
 
-This library provides a DAG-based workflow execution engine for orchestrating multiple Codex agents. Each workflow consists of **agents** (with specific roles and configurations) and **task nodes** (units of work with dependencies). The runner executes tasks in waves, respecting dependencies and concurrency limits.
+This library provides a DAG-based workflow execution engine for orchestrating multiple Codex agents. Each workflow consists of **agents** (with specific roles and configurations) and **task nodes** (units of work with dependencies). The runner executes tasks as soon as dependencies complete, respecting concurrency limits.
 
 ## Architecture
 
@@ -22,9 +22,8 @@ This library provides a DAG-based workflow execution engine for orchestrating mu
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                        Runner                               │
-│  Wave 1: [repo_overview, requirements]  (parallel)         │
-│  Wave 2: [workflow_plan]                                    │
-│  Wave 3: [final_brief]                                      │
+│  Ready queue → tasks start when deps are satisfied          │
+│  Global concurrency + optional per-agent caps               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,6 +51,7 @@ pub struct AgentSpec {
   model : String?            // Optional model override (e.g., "o3")
   sandbox_mode : @codex.SandboxMode?  // Optional sandbox mode override
   working_directory : String?         // Optional working directory override
+  max_concurrency : Int?     // Optional per-agent concurrency cap
 }
 ```
 
@@ -86,7 +86,7 @@ Configuration for workflow execution (defined in `orchestration` package):
 
 ```moonbit
 pub struct RunOptions {
-  concurrency : Int                    // Max parallel tasks per wave
+  concurrency : Int                    // Max parallel tasks overall
   working_directory : String           // Default working directory
   default_sandbox : @codex.SandboxMode // Default sandbox mode
   default_model : String?              // Default model for all agents
@@ -340,7 +340,7 @@ let my_workflow = Workflow::{
 
 1. **Graph Construction**: The runner builds an internal dependency graph from the workflow definition, validating that all dependencies exist and detecting duplicate IDs.
 
-2. **Wave Execution**: Tasks are executed in waves. Each wave contains all tasks whose dependencies have been satisfied. Within a wave, tasks run concurrently up to the configured concurrency limit.
+2. **Dependency-Driven Execution**: Tasks start as soon as their dependencies complete. Global concurrency and optional per-agent caps limit parallelism.
 
 3. **Result Propagation**: Each task receives the outputs of its dependencies in its prompt, enabling context flow through the DAG.
 

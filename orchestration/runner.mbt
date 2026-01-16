@@ -1,7 +1,7 @@
 ///|
 /// Options that control workflow execution.
 ///
-/// `concurrency` caps how many nodes can run in parallel per wave.
+/// `concurrency` caps how many nodes can run in parallel.
 /// `working_directory` is the default repo root for all agents.
 /// `default_sandbox` and `default_model` apply when agents do not override them.
 pub struct RunOptions {
@@ -27,8 +27,9 @@ pub fn RunOptions::new(
 ///|
 /// Execute a workflow DAG using the configured agents.
 ///
-/// Nodes run in dependency waves. Each wave runs with a concurrency cap from
-/// `RunOptions`. Returns a map of node ids to their final response strings.
+/// Nodes run as soon as dependencies complete, using the concurrency cap from
+/// `RunOptions` plus any per-agent caps from `AgentSpec`. Returns a map of node
+/// ids to their final response strings.
 ///
 /// Raises on duplicate agent names, duplicate node ids, missing dependencies,
 /// or if the graph cannot complete (cycles). Per-node execution failures are
@@ -42,6 +43,7 @@ pub async fn run_workflow(
     return {}
   }
   let agent_map = build_agent_map(workflow)
+  let agent_semaphores = build_agent_semaphores(workflow)
   let graph = workflow.build_graph()
   let ready : Array[@dag.ID] = workflow.nodes.filter_map(node => if node.deps.is_empty() {
     Some(node.id)
@@ -55,51 +57,73 @@ pub async fn run_workflow(
   } else {
     options.concurrency
   }
-  let completed = for ready = ready, wave = 1, completed = 0; !ready.is_empty(); {
-    let ready_list = ready.map(id => id.to_string()).join(", ")
-    @stdio.stdout.write("Wave \{wave} ready: \{ready_list}\n")
-    let wave_results : Array[(@dag.ID, String)] = []
-    @async.with_task_group(fn(task_group) {
-      let semaphore = @semaphore.Semaphore::new(concurrency)
-      for node_id in ready {
-        let node = require_node(graph.nodes, node_id)
-        let agent = require_agent(agent_map, node.agent)
-        task_group.spawn_bg(allow_failure=true, () => {
-          semaphore.acquire()
-          defer semaphore.release()
-          @stdio.stdout.write(
-            "info [\{node_id.to_string()}] start - \{node.title} via \{agent.label()}\n",
-          )
-          let output = run_node(node, agent, results, codex, options) catch {
-            e => {
-              @stdio.stderr.write(
-                "error [\{node_id.to_string()}] failed: \{e}\n",
-              )
-              "ERROR: \{e}"
-            }
+  let done_queue : @aqueue.Queue[(@dag.ID, String)] = @aqueue.Queue::new(kind=Unbounded)
+  let mut completed = 0
+  let mut in_flight = 0
+  @async.with_task_group(fn(task_group) {
+    let semaphore = @semaphore.Semaphore::new(concurrency)
+    let spawn_node = fn(
+      node_id : @dag.ID,
+      node : @dag.TaskNode,
+      agent : @dag.AgentSpec,
+    ) -> Unit {
+      in_flight = in_flight + 1
+      task_group.spawn_bg(allow_failure=true, () => {
+        let agent_limit = agent_semaphores.get(node.agent)
+        match agent_limit {
+          Some(agent_semaphore) => {
+            agent_semaphore.acquire()
+            defer agent_semaphore.release()
           }
-          wave_results.push((node_id, output))
-          @stdio.stdout.write("info [\{node_id.to_string()}] done\n")
-        })
+          None => ()
+        }
+        semaphore.acquire()
+        defer semaphore.release()
+        @stdio.stdout.write(
+          "info [\{node_id.to_string()}] start - \{node.title} via \{agent.label()}\n",
+        )
+        let output = run_node(node, agent, results, codex, options) catch {
+          e => {
+            @stdio.stderr.write(
+              "error [\{node_id.to_string()}] failed: \{e}\n",
+            )
+            "ERROR: \{e}"
+          }
+        }
+        guard done_queue.try_put((node_id, output)) else {
+          @stdio.stderr.write(
+            "error [\{node_id.to_string()}] completion queue full\n",
+          )
+          abort("Completion queue is full")
+        }
+        @stdio.stdout.write("info [\{node_id.to_string()}] done\n")
+      })
+    }
+    for node_id in ready {
+      let node = require_node(graph.nodes, node_id)
+      let agent = require_agent(agent_map, node.agent)
+      spawn_node(node_id, node, agent)
+    }
+    while completed < total {
+      if in_flight == 0 {
+        break
       }
-    })
-    let next_ready : Array[@dag.ID] = []
-    for node_result in wave_results {
-      let (node_id, output) = node_result
+      let (node_id, output) = done_queue.get()
+      in_flight = in_flight - 1
+      completed = completed + 1
       results[node_id] = output
       let children = graph.dependents.get_or_default(node_id, [])
       for child in children {
         let remaining = graph.remaining.get_or_default(child, 0) - 1
         graph.remaining[child] = remaining
         if remaining == 0 {
-          next_ready.push(child)
+          let node = require_node(graph.nodes, child)
+          let agent = require_agent(agent_map, node.agent)
+          spawn_node(child, node, agent)
         }
       }
     }
-    continue next_ready, wave + 1, completed + wave_results.length()
-  } else {
-    completed
-  }
+  })
   if completed != total {
     @error.fail(
       "Workflow did not complete (\{completed}/\{total}). Check for cycles or missing deps.",
@@ -174,6 +198,24 @@ fn build_agent_map(
     agent_map[agent.name] = agent
   }
   agent_map
+}
+
+///|
+/// Build per-agent semaphores from concurrency limits.
+fn build_agent_semaphores(
+  workflow : @dag.Workflow,
+) -> Map[@dag.AgentID, @semaphore.Semaphore] {
+  let semaphores : Map[@dag.AgentID, @semaphore.Semaphore] = {}
+  for agent in workflow.agents {
+    match agent.max_concurrency {
+      Some(limit) => {
+        let cap = if limit < 1 { 1 } else { limit }
+        semaphores[agent.name] = @semaphore.Semaphore::new(cap)
+      }
+      None => ()
+    }
+  }
+  semaphores
 }
 
 ///|

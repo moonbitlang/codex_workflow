@@ -160,7 +160,7 @@ fn has_agent(names : Array[AgentID], target : AgentID) -> Bool {
 
 ///|
 test "sample names stable" {
-  inspect(sample_names(), content="[\"kickoff\", \"review\"]")
+  inspect(sample_names(), content="[\"kickoff\", \"review\", \"incremental_merge\"]")
 }
 
 ///|
@@ -179,7 +179,7 @@ test "sample workflow lookup" {
 
 ///|
 test "sample workflow count" {
-  inspect(sample_workflows().length(), content="2")
+  inspect(sample_workflows().length(), content="3")
 }
 
 ///|
@@ -219,6 +219,16 @@ test "sample workflow plans" {
   inspect(
     review_plan,
     content="Wave 1: readme_scan, cli_scan\nWave 2: review_summary",
+  )
+  let mut merge_plan = "<missing>"
+  match sample_workflow("incremental_merge") {
+    Some(workflow) => merge_plan = workflow.render_plan()
+    None => ()
+  }
+  inspect(
+    merge_plan,
+    content=
+      "Wave 1: dispatch\nWave 2: job1, job2, job3, job4\nWave 3: merge_job1, merge_job2, merge_job3, merge_job4\nWave 4: merge_summary",
   )
 }
 
