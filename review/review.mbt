@@ -669,6 +669,7 @@ async fn run_command_output(
   ensure_directory(tmp_dir)
   let stdout = @process.redirect_to_file(stdout_path, create=420, truncate=true)
   let stderr = @process.redirect_to_file(stderr_path, create=420, truncate=true)
+  let mut run_error : String? = None
   let code = @process.run(
     command,
     args,
@@ -676,15 +677,27 @@ async fn run_command_output(
     stdout~,
     stderr~,
     cwd?,
-  )
+  ) catch {
+    err => {
+      run_error = Some("\{err}")
+      127
+    }
+  }
   let out_text = read_file_safe(stdout_path)
   let err_text = read_file_safe(stderr_path)
-  let text = if err_text.is_empty() {
+  let mut text = if err_text.is_empty() {
     out_text
   } else if out_text.is_empty() {
     err_text
   } else {
     out_text + "\n" + err_text
+  }
+  if run_error is Some(err) {
+    if text.is_empty() {
+      text = err
+    } else {
+      text = text + "\n" + err
+    }
   }
   (code, text.trim_end(chars=" \t\r\n").to_string())
 }
