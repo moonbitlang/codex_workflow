@@ -209,7 +209,8 @@ fn expand_home(path : String) -> String {
 ///|
 /// Normalizes a path by resolving `.` and `..` components.
 fn normalize_path(path : String) -> String {
-  @path.Path(path).normalize().to_string()
+  let normalized = @path.Path(path).resolve().normalize().to_string()
+  if normalized.is_empty() { "." } else { normalized }
 }
 
 ///|
@@ -266,7 +267,8 @@ async fn discover_packages(repo : String) -> Array[String] {
 }
 
 ///|
-/// Finds all `moon.pkg` and `moon.pkg.json` files using ripgrep (or find as fallback).
+/// Finds all `moon.pkg` and `moon.pkg.json` files using ripgrep or find.
+/// Falls back to a recursive filesystem scan when external tools are unavailable.
 async fn find_package_files(repo : String) -> Array[String] {
   let (code, output) = run_command_output(
     "rg",
@@ -277,21 +279,65 @@ async fn find_package_files(repo : String) -> Array[String] {
   if code == 0 && !lines.is_empty() {
     return lines
   }
-  let (_, fallback) = run_command_output(
+  let (fallback_code, fallback) = run_command_output(
     "find",
     [".", "-name", "moon.pkg", "-o", "-name", "moon.pkg.json"],
     cwd=repo,
   )
-  split_lines(fallback)
+  let fallback_lines = split_lines(fallback)
+  if fallback_code == 0 && !fallback_lines.is_empty() {
+    return fallback_lines
+  }
+  scan_package_files(repo)
 }
 
 ///|
 /// Returns true if the path should be ignored (build artifacts, git internals, etc.).
 fn should_ignore_path(path : String) -> Bool {
-  path.has_prefix("_build/") ||
-  path.has_prefix("target/") ||
-  path.has_prefix(".git/") ||
-  path.has_prefix(".worktrees/")
+  path == "_build" || path.has_prefix("_build/") ||
+  path == "target" || path.has_prefix("target/") ||
+  path == ".git" || path.has_prefix(".git/") ||
+  path == ".worktrees" || path.has_prefix(".worktrees/")
+}
+
+///|
+/// Recursively scans the filesystem for package manifests.
+fn scan_package_files(repo : String) -> Array[String] {
+  let output : Array[String] = []
+  scan_package_dir(repo, "", output)
+  output
+}
+
+///|
+/// Walks directories under `repo` and collects moon.pkg* files.
+fn scan_package_dir(
+  repo : String,
+  relative : String,
+  output : Array[String],
+) -> Unit {
+  let dir_path = if relative.is_empty() { repo } else { join_path(repo, relative) }
+  let entries = @fs.read_dir(dir_path) catch {
+    _ => []
+  }
+  for entry in entries {
+    let rel_path = if relative.is_empty() {
+      entry
+    } else {
+      relative + "/" + entry
+    }
+    if should_ignore_path(rel_path) {
+      continue
+    }
+    let full_path = join_path(repo, rel_path)
+    let is_dir = @fs.is_dir(full_path) catch { _ => false }
+    if is_dir {
+      scan_package_dir(repo, rel_path, output)
+      continue
+    }
+    if entry == "moon.pkg" || entry == "moon.pkg.json" {
+      output.push(rel_path)
+    }
+  }
 }
 
 ///|
