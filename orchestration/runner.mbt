@@ -43,24 +43,20 @@ pub async fn run_workflow(
   }
   let agent_map = build_agent_map(workflow)
   let graph = workflow.build_graph()
-  let mut ready : Array[@dag.ID] = []
-  for node in workflow.nodes {
-    if node.deps.is_empty() {
-      ready.push(node.id)
-    }
-  }
+  let ready : Array[@dag.ID] = workflow.nodes.filter_map(node => if node.deps.is_empty() {
+    Some(node.id)
+  } else {
+    None
+  })
   let results : Map[@dag.ID, String] = {}
   let total = workflow.nodes.length()
-  let mut completed = 0
-  let mut wave = 0
   let concurrency = if options.concurrency < 1 {
     1
   } else {
     options.concurrency
   }
-  while !ready.is_empty() {
-    wave = wave + 1
-    let ready_list = ready.map(fn(id) { id.to_string() }).join(", ")
+  let completed = for ready = ready, wave = 1, completed = 0; !ready.is_empty(); {
+    let ready_list = ready.map(id => id.to_string()).join(", ")
     @stdio.stdout.write("Wave \{wave} ready: \{ready_list}\n")
     let wave_results : Array[(@dag.ID, String)] = []
     @async.with_task_group(fn(task_group) {
@@ -68,7 +64,7 @@ pub async fn run_workflow(
       for node_id in ready {
         let node = require_node(graph.nodes, node_id)
         let agent = require_agent(agent_map, node.agent)
-        task_group.spawn_bg(allow_failure=true, fn() {
+        task_group.spawn_bg(allow_failure=true, () => {
           semaphore.acquire()
           defer semaphore.release()
           @stdio.stdout.write(
@@ -91,7 +87,6 @@ pub async fn run_workflow(
     for node_result in wave_results {
       let (node_id, output) = node_result
       results[node_id] = output
-      completed = completed + 1
       let children = graph.dependents.get_or_default(node_id, [])
       for child in children {
         let remaining = graph.remaining.get_or_default(child, 0) - 1
@@ -101,7 +96,9 @@ pub async fn run_workflow(
         }
       }
     }
-    ready = next_ready
+    continue next_ready, wave + 1, completed + wave_results.length()
+  } else {
+    completed
   }
   if completed != total {
     @error.fail(
@@ -135,7 +132,7 @@ async fn run_node(
   )
   let prompt = build_prompt(node, agent, results)
   let response = thread.run(prompt)
-  response.final_response.trim(char_set=" \t\r\n").to_string()
+  response.final_response.trim().to_string()
 }
 
 ///|
