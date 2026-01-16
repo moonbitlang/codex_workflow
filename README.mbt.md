@@ -159,6 +159,9 @@ moon run cmd/main -- --sample kickoff --model o3
 
 # Review MoonBit packages in parallel
 moon run cmd/main -- --review-packages --repo ~/git/core/core.git --base origin/main
+
+# Improve package README files and merge the results
+moon run cmd/main -- --readme-packages --repo ~/git/core/core.git
 ```
 
 ### CLI Options
@@ -170,11 +173,13 @@ moon run cmd/main -- --review-packages --repo ~/git/core/core.git --base origin/
 | `--dag` | `-g` | Print DAG as ASCII and exit | — |
 | `--plan` | `-p` | Print topological execution waves and exit | — |
 | `--review-packages` | `-r` | Review MoonBit packages in parallel | — |
+| `--readme-packages` | — | Improve package README files then merge | — |
 | `--workdir <path>` | — | Working directory for agents | `.` |
 | `--model <name>` | — | Model override for all agents | — |
 | `--repo <path>` | — | Repo path for package reviews | `.` |
 | `--worktrees <path>` | — | Worktree root for package reviews | `<repo>.worktrees` |
 | `--base <ref>` | — | Base ref for review branches | `origin/main` |
+| `--merge-branch <ref>` | — | Merge branch for README workflow | `readme/merge` |
 | `--draft` | — | Create draft PRs | — |
 | `--no-draft` | — | Create ready-for-review PRs | — |
 | `--cleanup` | — | Remove worktrees with no changes | — |
@@ -266,6 +271,23 @@ By default, worktrees are created in a sibling directory:
   ├── src-core/         # review/src-core branch
   ├── src-utils/        # review/src-utils branch
   └── tests/            # review/tests branch
+```
+
+## README Review Mode
+
+The `--readme-packages` mode improves each package README in its own worktree, then merges all branches in a merge worktree and runs `moon check`.
+
+### Usage Examples
+
+```bash
+# Improve README files in the current repo
+moon run cmd/main -- --readme-packages
+
+# Use a specific repo and base branch
+moon run cmd/main -- --readme-packages --repo ~/git/moonbit-core --base origin/develop
+
+# Override the merge branch name
+moon run cmd/main -- --readme-packages --merge-branch readme/merge-docs
 ```
 
 ## Built-in Samples

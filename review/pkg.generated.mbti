@@ -8,6 +8,8 @@ import(
 // Values
 pub async fn prepare_package_reviews(PackageReviewOptions) -> PreparedReview?
 
+pub async fn prepare_readme_reviews(ReadmeReviewOptions) -> PreparedReadmeReview?
+
 pub async fn process_review_results(PreparedReview, Map[@dag.ID, String]) -> Unit
 
 // Errors
@@ -18,12 +20,28 @@ pub struct PackageReviewOptions {
 }
 pub fn PackageReviewOptions::new(String, base_ref? : String, worktrees_root? : String, model? : String?, draft? : Bool, cleanup? : Bool) -> Self
 
+pub struct PreparedReadmeReview {
+  // private fields
+}
+pub fn PreparedReadmeReview::base_ref(Self) -> String
+pub fn PreparedReadmeReview::merge_branch(Self) -> String
+pub fn PreparedReadmeReview::merge_worktree(Self) -> String
+pub fn PreparedReadmeReview::model(Self) -> String?
+pub fn PreparedReadmeReview::package_dirs(Self) -> Array[String]
+pub fn PreparedReadmeReview::repo_path(Self) -> String
+pub fn PreparedReadmeReview::workflow(Self) -> @dag.Workflow
+
 pub struct PreparedReview {
   // private fields
 }
 pub fn PreparedReview::model(Self) -> String?
 pub fn PreparedReview::repo_path(Self) -> String
 pub fn PreparedReview::workflow(Self) -> @dag.Workflow
+
+pub struct ReadmeReviewOptions {
+  // private fields
+}
+pub fn ReadmeReviewOptions::new(String, base_ref? : String, worktrees_root? : String, model? : String?, merge_branch? : String) -> Self
 
 // Type aliases
 

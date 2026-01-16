@@ -3,10 +3,25 @@ async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
     flags=[
-      "help", "list", "dag", "plan", "review-packages", "draft", "no-draft", "cleanup",
+      "help",
+      "list",
+      "dag",
+      "plan",
+      "review-packages",
+      "readme-packages",
+      "draft",
+      "no-draft",
+      "cleanup",
     ],
     options=[
-      "sample", "concurrency", "workdir", "model", "repo", "worktrees", "base",
+      "sample",
+      "concurrency",
+      "workdir",
+      "model",
+      "repo",
+      "worktrees",
+      "base",
+      "merge-branch",
     ],
     aliases={
       "h": "help",
@@ -34,7 +49,67 @@ async fn main {
     return
   }
   let wants_review = args.flags.get("review-packages") is Some(true)
+  let wants_readme = args.flags.get("readme-packages") is Some(true)
   let model = args.options.get("model")
+  if wants_readme {
+    let repo = args.options.get("repo").unwrap_or(".")
+    let worktrees = args.options.get("worktrees").unwrap_or("")
+    let base = args.options.get("base").unwrap_or("origin/main")
+    let merge_branch = args.options.get("merge-branch").unwrap_or("readme/merge")
+    let concurrency = parse_concurrency(args.options.get("concurrency"), 4)
+    let options = @review.ReadmeReviewOptions::new(
+      repo,
+      base_ref=base,
+      worktrees_root=worktrees,
+      model~,
+      merge_branch=merge_branch,
+    )
+    let wants_dag = args.flags.get("dag") is Some(true)
+    let wants_plan = args.flags.get("plan") is Some(true)
+    match @review.prepare_readme_reviews(options) {
+      Some(prepared) => {
+        if wants_plan {
+          @stdio.stdout.write("Plan for README reviews:\n")
+          @stdio.stdout.write(prepared.workflow().render_plan())
+          @stdio.stdout.write("\n")
+        }
+        if wants_dag {
+          @stdio.stdout.write("DAG for README reviews:\n")
+          @stdio.stdout.write(prepared.workflow().render_dag())
+          @stdio.stdout.write("\n")
+        }
+        if wants_dag || wants_plan {
+          return
+        }
+        let codex = @codex.Codex::new()
+        let run_options = @orchestration.RunOptions::new(
+          prepared.repo_path(),
+          concurrency,
+          default_sandbox=@codex.SandboxMode::WorkspaceWrite,
+          default_model?=prepared.model(),
+        )
+        @stdio.stdout.write(
+          "Improving READMEs with concurrency \{concurrency}...\n",
+        )
+        let results = @orchestration.run_workflow(
+          prepared.workflow(),
+          codex,
+          run_options,
+        ) catch {
+          e => {
+            @stdio.stderr.write("README review failed: \{e}\n")
+            return
+          }
+        }
+        let merge_output = results
+          .get(@dag.ID::new("merge_readmes"))
+          .unwrap_or("<missing output>")
+        @stdio.stdout.write("\nMerge output:\n\{merge_output}\n")
+      }
+      None => @stdio.stderr.write("Failed to prepare README reviews.\n")
+    }
+    return
+  }
   if wants_review {
     let repo = args.options.get("repo").unwrap_or(".")
     let worktrees = args.options.get("worktrees").unwrap_or("")
@@ -171,11 +246,13 @@ fn help_message() -> String {
     #|  -g, --dag                 Print the workflow DAG as ASCII and exit
     #|  -p, --plan                Print topological execution waves and exit
     #|  -r, --review-packages     Review MoonBit packages in parallel
+    #|  --readme-packages         Improve package README files then merge
     #|  --workdir <path>          Working directory for agents (default: .)
     #|  --model <name>            Optional model override
     #|  --repo <path>             Repo path for package reviews (default: .)
     #|  --worktrees <path>        Worktree root (default: <repo>.worktrees)
     #|  --base <ref>              Base ref for reviews (default: origin/main)
+    #|  --merge-branch <ref>      Merge branch for README workflow (default: readme/merge)
     #|  --draft                   Create draft PRs (default for reviews)
     #|  --no-draft                Create ready-for-review PRs
     #|  --cleanup                 Remove worktrees with no changes
