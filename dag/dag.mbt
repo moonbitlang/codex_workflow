@@ -4,7 +4,7 @@
 /// This newtype wrapper around `String` provides type safety when working
 /// with node identifiers, ensuring IDs are not accidentally mixed with
 /// other string values.
-pub struct ID(String) derive(Eq, Hash, Show)
+pub struct ID(String) derive(Eq, Hash, Debug)
 
 ///|
 /// Create a new ID from a string.
@@ -176,7 +176,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
       }
     }
     continue idx + 1
-  } else {
+  } nobreak {
 
   }
   let level : Map[ID, Int] = {}
@@ -260,7 +260,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
       first = false
     }
     continue depth + 1
-  } else {
+  } nobreak {
 
   }
   let mut width = 0
@@ -302,7 +302,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   }
   let lines : Array[String] = []
   for row in canvas.rows {
-    let line = String::from_array(row[:])
+    let line = String::from_array(row)
     lines.push(line.trim_end(chars=" ").to_string())
   }
   lines.join("\n")
@@ -434,7 +434,7 @@ fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
   for x = start; x <= end; {
     canvas.set(x, y, '-')
     continue x + 1
-  } else {
+  } nobreak {
 
   }
 }
@@ -451,4 +451,10 @@ fn draw_label(canvas : Canvas, x : Int, y : Int, label : String) -> Unit {
       canvas.rows[y][pos] = ch
     }
   }
+}
+
+///|
+pub impl Show for ID with output(self, logger) {
+  let ID(s) = self
+  logger.write_string(s)
 }

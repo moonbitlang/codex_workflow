@@ -3,25 +3,11 @@ async fn main {
   let args = @args.parse(
     @sys.get_cli_args()[1:],
     flags=[
-      "help",
-      "list",
-      "dag",
-      "plan",
-      "review-packages",
-      "readme-packages",
-      "draft",
-      "no-draft",
-      "cleanup",
+      "help", "list", "dag", "plan", "review-packages", "readme-packages", "draft",
+      "no-draft", "cleanup",
     ],
     options=[
-      "sample",
-      "concurrency",
-      "workdir",
-      "model",
-      "repo",
-      "worktrees",
-      "base",
-      "merge-branch",
+      "sample", "concurrency", "workdir", "model", "repo", "worktrees", "base", "merge-branch",
     ],
     aliases={
       "h": "help",
@@ -55,14 +41,16 @@ async fn main {
     let repo = args.options.get("repo").unwrap_or(".")
     let worktrees = args.options.get("worktrees").unwrap_or("")
     let base = args.options.get("base").unwrap_or("origin/main")
-    let merge_branch = args.options.get("merge-branch").unwrap_or("readme/merge")
+    let merge_branch = args.options
+      .get("merge-branch")
+      .unwrap_or("readme/merge")
     let concurrency = parse_concurrency(args.options.get("concurrency"), 4)
     let options = @review.ReadmeReviewOptions::new(
       repo,
       base_ref=base,
       worktrees_root=worktrees,
       model~,
-      merge_branch=merge_branch,
+      merge_branch~,
     )
     let wants_dag = args.flags.get("dag") is Some(true)
     let wants_plan = args.flags.get("plan") is Some(true)
@@ -266,7 +254,7 @@ fn help_message() -> String {
 async fn parse_concurrency(value : String?, default_value : Int) -> Int {
   match value {
     Some(text) =>
-      @strconv.parse_int(text) catch {
+      @string.parse_int(text) catch {
         _ => {
           @stdio.stderr.write(
             "warning: invalid concurrency '\{text}', using \{default_value}\n",

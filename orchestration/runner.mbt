@@ -45,10 +45,12 @@ pub async fn run_workflow(
   let agent_map = build_agent_map(workflow)
   let agent_semaphores = build_agent_semaphores(workflow)
   let graph = workflow.build_graph()
-  let ready : Array[@dag.ID] = workflow.nodes.filter_map(node => if node.deps.is_empty() {
-    Some(node.id)
-  } else {
-    None
+  let ready : Array[@dag.ID] = workflow.nodes.filter_map(node => {
+    if node.deps.is_empty() {
+      Some(node.id)
+    } else {
+      None
+    }
   })
   let results : Map[@dag.ID, String] = {}
   let total = workflow.nodes.length()
@@ -57,10 +59,12 @@ pub async fn run_workflow(
   } else {
     options.concurrency
   }
-  let done_queue : @aqueue.Queue[(@dag.ID, String)] = @aqueue.Queue::new(kind=Unbounded)
+  let done_queue : @aqueue.Queue[(@dag.ID, String)] = @aqueue.Queue::new(
+    kind=Unbounded,
+  )
   let mut completed = 0
   let mut in_flight = 0
-  @async.with_task_group(fn(task_group) {
+  @async.with_task_group(async fn(task_group) {
     let semaphore = @semaphore.Semaphore::new(concurrency)
     let spawn_node = fn(
       node_id : @dag.ID,
@@ -84,9 +88,7 @@ pub async fn run_workflow(
         )
         let output = run_node(node, agent, results, codex, options) catch {
           e => {
-            @stdio.stderr.write(
-              "error [\{node_id.to_string()}] failed: \{e}\n",
-            )
+            @stdio.stderr.write("error [\{node_id.to_string()}] failed: \{e}\n")
             "ERROR: \{e}"
           }
         }

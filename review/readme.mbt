@@ -139,13 +139,7 @@ pub async fn prepare_readme_reviews(
   }
   let merge_worktree = join_path(worktrees, "readme-merge")
   let merge_branch = options.merge_branch
-  if !ensure_worktree_path(
-      repo,
-      merge_worktree,
-      merge_branch,
-      base,
-      "merge",
-    ) {
+  if !ensure_worktree_path(repo, merge_worktree, merge_branch, base, "merge") {
     @stdio.stderr.write("Failed to create merge worktree.\n")
     return None
   }
@@ -221,34 +215,18 @@ async fn ensure_worktree_path(
     return true
   }
   let args = [
-    "-C",
-    repo,
-    "worktree",
-    "add",
-    "-b",
-    branch,
-    worktree_path,
-    base_ref,
+    "-C", repo, "worktree", "add", "-b", branch, worktree_path, base_ref,
   ]
   let (code, output) = run_command_output("git", args)
   if code == 0 {
     return true
   }
-  let fallback = [
-    "-C",
-    repo,
-    "worktree",
-    "add",
-    worktree_path,
-    branch,
-  ]
+  let fallback = ["-C", repo, "worktree", "add", worktree_path, branch]
   let (fallback_code, _) = run_command_output("git", fallback)
   if fallback_code == 0 {
     return true
   }
-  @stdio.stderr.write(
-    "Failed to create worktree for \{label}: \{output}\n",
-  )
+  @stdio.stderr.write("Failed to create worktree for \{label}: \{output}\n")
   false
 }
 
@@ -266,8 +244,7 @@ fn build_readme_workflow(
   let nodes : Array[@dag.TaskNode] = []
   let deps : Array[@dag.ID] = []
   for review in reviews {
-    let role =
-      "Review and improve README docs for package \{review.package_dir}."
+    let role = "Review and improve README docs for package \{review.package_dir}."
     let agent = match model {
       Some(value) =>
         @dag.AgentSpec::new(
@@ -398,7 +375,9 @@ fn build_merge_prompt(
   lines.push("Rules:")
   lines.push("- Ensure the worktree is clean and on the target branch.")
   lines.push("- Merge each branch with `git merge --no-ff --no-edit <branch>`.")
-  lines.push("- Resolve conflicts by keeping the best README content per package.")
+  lines.push(
+    "- Resolve conflicts by keeping the best README content per package.",
+  )
   lines.push("- After all merges, run `moon check` from repo root.")
   lines.push("- Fix README issues if `moon check` fails, then re-run.")
   lines.push("")

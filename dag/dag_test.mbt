@@ -48,10 +48,7 @@ test "render_workflow_plan detects duplicate ids" {
     TaskNode::new("dup", "First", [], "agent", "first"),
     TaskNode::new("dup", "Second", [], "agent", "second"),
   ])
-  inspect(
-    workflow.render_plan(),
-    content="ERROR: Duplicate node id: dup",
-  )
+  inspect(workflow.render_plan(), content="ERROR: Duplicate node id: dup")
 }
 
 ///|
@@ -108,9 +105,18 @@ test "build_graph creates valid graph" {
   inspect(graph.nodes.get(ID::new("b")) is Some(_), content="true")
   inspect(graph.nodes.get(ID::new("c")) is Some(_), content="true")
   // Check dependents (reverse dependencies)
-  inspect(graph.dependents.get_or_default(ID::new("a"), []).length(), content="2") // a -> b, c
-  inspect(graph.dependents.get_or_default(ID::new("b"), []).length(), content="1") // b -> c
-  inspect(graph.dependents.get_or_default(ID::new("c"), []).length(), content="0") // c has no dependents
+  inspect(
+    graph.dependents.get_or_default(ID::new("a"), []).length(),
+    content="2",
+  ) // a -> b, c
+  inspect(
+    graph.dependents.get_or_default(ID::new("b"), []).length(),
+    content="1",
+  ) // b -> c
+  inspect(
+    graph.dependents.get_or_default(ID::new("c"), []).length(),
+    content="0",
+  ) // c has no dependents
   // Check remaining counts
   inspect(graph.remaining.get_or_default(ID::new("a"), -1), content="0") // a has 0 deps
   inspect(graph.remaining.get_or_default(ID::new("b"), -1), content="1") // b has 1 dep
@@ -160,7 +166,10 @@ fn has_agent(names : Array[AgentID], target : AgentID) -> Bool {
 
 ///|
 test "sample names stable" {
-  inspect(sample_names(), content="[\"kickoff\", \"review\", \"incremental_merge\"]")
+  inspect(
+    sample_names(),
+    content="[\"kickoff\", \"review\", \"incremental_merge\"]",
+  )
 }
 
 ///|
@@ -227,8 +236,7 @@ test "sample workflow plans" {
   }
   inspect(
     merge_plan,
-    content=
-      "Wave 1: dispatch\nWave 2: job1, job2, job3, job4\nWave 3: merge_job1, merge_job2, merge_job3, merge_job4\nWave 4: merge_summary",
+    content="Wave 1: dispatch\nWave 2: job1, job2, job3, job4\nWave 3: merge_job1, merge_job2, merge_job3, merge_job4\nWave 4: merge_summary",
   )
 }
 

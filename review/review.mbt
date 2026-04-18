@@ -210,7 +210,11 @@ fn expand_home(path : String) -> String {
 /// Normalizes a path by resolving `.` and `..` components.
 fn normalize_path(path : String) -> String {
   let normalized = @path.Path(path).resolve().normalize().to_string()
-  if normalized.is_empty() { "." } else { normalized }
+  if normalized.is_empty() {
+    "."
+  } else {
+    normalized
+  }
 }
 
 ///|
@@ -240,7 +244,6 @@ async fn is_git_repo(repo : String) -> Bool {
 /// Creates a directory (and parents) if it doesn't exist.
 async fn ensure_directory(path : String) -> Unit {
   let _ = @process.run("mkdir", ["-p", path], inherit_env=true)
-
 }
 
 ///|
@@ -294,10 +297,14 @@ async fn find_package_files(repo : String) -> Array[String] {
 ///|
 /// Returns true if the path should be ignored (build artifacts, git internals, etc.).
 fn should_ignore_path(path : String) -> Bool {
-  path == "_build" || path.has_prefix("_build/") ||
-  path == "target" || path.has_prefix("target/") ||
-  path == ".git" || path.has_prefix(".git/") ||
-  path == ".worktrees" || path.has_prefix(".worktrees/")
+  path == "_build" ||
+  path.has_prefix("_build/") ||
+  path == "target" ||
+  path.has_prefix("target/") ||
+  path == ".git" ||
+  path.has_prefix(".git/") ||
+  path == ".worktrees" ||
+  path.has_prefix(".worktrees/")
 }
 
 ///|
@@ -315,10 +322,12 @@ fn scan_package_dir(
   relative : String,
   output : Array[String],
 ) -> Unit {
-  let dir_path = if relative.is_empty() { repo } else { join_path(repo, relative) }
-  let entries = @fs.read_dir(dir_path) catch {
-    _ => []
+  let dir_path = if relative.is_empty() {
+    repo
+  } else {
+    join_path(repo, relative)
   }
+  let entries = @fs.read_dir(dir_path) catch { _ => [] }
   for entry in entries {
     let rel_path = if relative.is_empty() {
       entry
@@ -699,7 +708,6 @@ async fn remove_worktree(repo : String, worktree_path : String) -> Unit {
   let _ = run_command_output("git", [
     "-C", repo, "worktree", "remove", worktree_path,
   ])
-
 }
 
 ///|
