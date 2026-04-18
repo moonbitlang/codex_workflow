@@ -1,7 +1,7 @@
 import {
   "moonbitlang/async",
   "moonbitlang/async/stdio",
-  "moonbitlang/core/strconv",
+  "moonbitlang/core/string",
   "moonbitlang/x/sys",
   "peter-jerry-ye/codex",
   "peter-jerry-ye/codex/x/args",

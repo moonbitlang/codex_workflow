@@ -3,7 +3,7 @@
 ///
 /// This newtype wrapper around `String` provides type safety when working
 /// with agent names, ensuring they are not accidentally mixed with other strings.
-pub struct AgentID(String) derive(Eq, Hash, Show)
+pub struct AgentID(String) derive(Eq, Hash, Debug)
 
 ///|
 /// Create a new AgentID from a string.
@@ -67,4 +67,10 @@ pub fn AgentSpec::label(agent : AgentSpec) -> String {
   } else {
     agent.name.to_string()
   }
+}
+
+///|
+pub impl Show for AgentID with output(self, logger) {
+  let AgentID(s) = self
+  logger.write_string(s)
 }
