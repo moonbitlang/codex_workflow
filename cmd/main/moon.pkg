@@ -2,7 +2,7 @@ import {
   "moonbitlang/async",
   "moonbitlang/async/stdio",
   "moonbitlang/core/string",
-  "moonbitlang/x/sys",
+  "moonbitlang/core/env",
   "peter-jerry-ye/codex",
   "peter-jerry-ye/codex/x/args",
   "bobzhang/codex_workflow/dag",
@@ -10,6 +10,4 @@ import {
   "bobzhang/codex_workflow/review",
 }
 
-options(
-  "is-main": true,
-)
+pkgtype(kind: "executable")

@@ -6,6 +6,15 @@
 pub struct AgentID(String) derive(Eq, Hash, Debug)
 
 ///|
+pub extend AgentID with Eq::{not_equal, equal}
+
+///|
+pub extend AgentID with Hash::{hash, hash_combine}
+
+///|
+pub extend AgentID with Debug::{to_repr}
+
+///|
 /// Create a new AgentID from a string.
 pub fn AgentID::new(s : String) -> AgentID {
   AgentID(s)
@@ -70,7 +79,10 @@ pub fn AgentSpec::label(agent : AgentSpec) -> String {
 }
 
 ///|
-pub impl Show for AgentID with output(self, logger) {
+pub impl Show for AgentID with fn output(self, logger) {
   let AgentID(s) = self
   logger.write_string(s)
 }
+
+///|
+pub extend AgentID with Show::{output}

@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "bobzhang/codex_workflow/review"
 
-import(
-  "bobzhang/codex_workflow/dag"
-)
+import {
+  "bobzhang/codex_workflow/dag",
+}
 
 // Values
 pub async fn prepare_package_reviews(PackageReviewOptions) -> PreparedReview?
@@ -46,4 +46,3 @@ pub fn ReadmeReviewOptions::new(String, base_ref? : String, worktrees_root? : St
 // Type aliases
 
 // Traits
-

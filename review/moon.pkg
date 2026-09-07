@@ -3,7 +3,7 @@ import {
   "moonbitlang/async/stdio",
   "moonbitlang/x/fs",
   "moonbitlang/x/path",
-  "moonbitlang/x/sys",
+  "moonbitlang/core/env",
   "peter-jerry-ye/codex",
   "bobzhang/codex_workflow/dag",
 }
