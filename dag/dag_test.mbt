@@ -166,7 +166,7 @@ fn has_agent(names : Array[AgentID], target : AgentID) -> Bool {
 
 ///|
 test "sample names stable" {
-  inspect(
+  debug_inspect(
     sample_names(),
     content="[\"kickoff\", \"review\", \"incremental_merge\"]",
   )

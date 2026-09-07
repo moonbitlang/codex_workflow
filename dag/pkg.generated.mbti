@@ -1,9 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "bobzhang/codex_workflow/dag"
 
-import(
-  "peter-jerry-ye/codex"
-)
+import {
+  "moonbitlang/core/debug",
+  "peter-jerry-ye/codex",
+}
 
 // Values
 pub fn describe_workflow(Workflow) -> String
@@ -17,13 +18,15 @@ pub fn sample_workflows() -> Array[(String, Workflow)]
 // Errors
 
 // Types and methods
-pub struct AgentID(String)
-#deprecated
-pub fn AgentID::inner(Self) -> String
+pub struct AgentID(String) derive(Eq, Hash, @debug.Debug)
+pub fn AgentID::equal(Self, Self) -> Bool
+pub fn AgentID::hash(Self) -> Int
+pub fn AgentID::hash_combine(Self, Hasher) -> Unit
 pub fn AgentID::new(String) -> Self
+pub fn AgentID::not_equal(Self, Self) -> Bool
+pub fn AgentID::output(Self, &Logger) -> Unit
+pub fn AgentID::to_repr(Self) -> @debug.Repr
 pub fn AgentID::to_string(Self) -> String
-pub impl Eq for AgentID
-pub impl Hash for AgentID
 pub impl Show for AgentID
 
 pub struct AgentSpec {
@@ -43,13 +46,15 @@ pub struct Graph {
   remaining : Map[ID, Int]
 }
 
-pub struct ID(String)
-#deprecated
-pub fn ID::inner(Self) -> String
+pub struct ID(String) derive(Eq, Hash, @debug.Debug)
+pub fn ID::equal(Self, Self) -> Bool
+pub fn ID::hash(Self) -> Int
+pub fn ID::hash_combine(Self, Hasher) -> Unit
 pub fn ID::new(String) -> Self
+pub fn ID::not_equal(Self, Self) -> Bool
+pub fn ID::output(Self, &Logger) -> Unit
+pub fn ID::to_repr(Self) -> @debug.Repr
 pub fn ID::to_string(Self) -> String
-pub impl Eq for ID
-pub impl Hash for ID
 pub impl Show for ID
 
 pub struct TaskNode {
@@ -73,4 +78,3 @@ pub fn Workflow::render_plan(Self) -> String
 // Type aliases
 
 // Traits
-

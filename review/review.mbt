@@ -88,7 +88,7 @@ pub fn PackageReviewOptions::new(
   draft? : Bool = true,
   cleanup? : Bool = false,
 ) -> PackageReviewOptions {
-  { repo_path, worktrees_root, base_ref, model, draft, cleanup }
+  { repo_path, worktrees_root, base_ref, model, draft, cleanup, }
 }
 
 ///|
@@ -192,7 +192,7 @@ pub async fn process_review_results(
 /// Expands `~` to the user's home directory in a path string.
 fn expand_home(path : String) -> String {
   if path.has_prefix("~") {
-    let home = @sys.get_env_var("HOME").unwrap_or("")
+    let home = @env.get_env_var("HOME").unwrap_or("")
     if home.is_empty() {
       return path
     }
@@ -200,7 +200,7 @@ fn expand_home(path : String) -> String {
       return home
     }
     if path.strip_prefix("~/") is Some(rest) {
-      return home + "/" + rest.to_string()
+      return home + "/" + rest.to_owned()
     }
   }
   path
@@ -222,7 +222,7 @@ fn normalize_path(path : String) -> String {
 fn default_worktrees_root(repo_path : String) -> String {
   let repo = @path.Path(repo_path)
   let parent = repo.dirname()
-  let name = repo.basename().to_string()
+  let name = repo.basename().to_owned()
   let root = "\{name}.worktrees"
   parent.join(@path.Path(root)).to_string()
 }
@@ -250,7 +250,7 @@ async fn ensure_directory(path : String) -> Unit {
 /// Discovers all MoonBit packages in a repository by finding `moon.pkg` files.
 /// Ignores `_build/`, `target/`, `.git/`, and `.worktrees/` directories.
 async fn discover_packages(repo : String) -> Array[String] {
-  let packages : Map[String, Bool] = {}
+  let packages : Map[String, Bool] = Map([])
   let files = find_package_files(repo)
   for file in files {
     let trimmed = trim_prefix(file, "./")
@@ -352,7 +352,7 @@ fn scan_package_dir(
 ///|
 fn trim_prefix(path : String, prefix : String) -> String {
   match path.strip_prefix(prefix) {
-    Some(rest) => rest.to_string()
+    Some(rest) => rest.to_owned()
     None => path
   }
 }
@@ -388,7 +388,7 @@ fn slugify_package(package_dir : String) -> String {
   if package_dir == "." {
     return "root"
   }
-  let builder = StringBuilder::new()
+  let builder = StringBuilder()
   for ch in package_dir {
     match ch {
       '/' | '\\' => builder.write_char('-')
@@ -552,7 +552,7 @@ async fn list_changed_files(worktree_path : String) -> Array[String] {
     "-C", worktree_path, "ls-files", "--others", "--exclude-standard",
   ])
   let untracked = if other_code == 0 { split_lines(other_output) } else { [] }
-  let seen : Map[String, Bool] = {}
+  let seen : Map[String, Bool] = Map([])
   for file in tracked {
     if !file.is_empty() {
       seen[file] = true
@@ -600,7 +600,7 @@ fn build_review_body(
   package_dir : String,
   tests : Array[String],
 ) -> String {
-  let summary = raw.trim(char_set=" \t\r\n").to_string()
+  let summary = raw.trim(char_set=" \t\r\n").to_owned()
   let lines : Array[String] = []
   lines.push("Package: \{package_dir}")
   if !summary.is_empty() {
@@ -670,12 +670,11 @@ async fn create_pr(
   draft : Bool,
 ) -> Bool {
   let body_path = join_path(worktree_path, ".codex_pr_body.md")
-  let write_result : Result[Unit, @fs.IOError] = try? @fs.write_string_to_file(
-    body_path, body,
-  )
-  if write_result is Err(err) {
-    @stdio.stderr.write("Failed to write PR body: \{err}\n")
-    return false
+  @fs.write_string_to_file(body_path, body) catch {
+    err => {
+      @stdio.stderr.write("Failed to write PR body: \{Repr(err)}\n")
+      return false
+    }
   }
   let args : Array[String] = [
     "-C", worktree_path, "pr", "create", "--base", base_branch, "--head", branch,
@@ -697,7 +696,7 @@ async fn create_pr(
 fn pr_base_branch(base_ref : String) -> String {
   let mut last = base_ref
   for part in base_ref.split("/") {
-    last = part.to_string()
+    last = part.to_owned()
   }
   last
 }
@@ -716,13 +715,21 @@ async fn remove_worktree(repo : String, worktree_path : String) -> Unit {
 async fn run_command_output(
   command : String,
   args : Array[String],
-  cwd? : String,
+  cwd? : StringView,
 ) -> (Int, String) {
   let (stdout_path, stderr_path) = temp_output_paths()
   let tmp_dir = @path.Path(stdout_path).dirname().to_string()
   ensure_directory(tmp_dir)
-  let stdout = @process.redirect_to_file(stdout_path, create=420, truncate=true)
-  let stderr = @process.redirect_to_file(stderr_path, create=420, truncate=true)
+  let stdout = @process.redirect_to_file(
+    stdout_path,
+    create_mode=CreateOrTruncate,
+    permission=0o644,
+  )
+  let stderr = @process.redirect_to_file(
+    stderr_path,
+    create_mode=CreateOrTruncate,
+    permission=0o644,
+  )
   let mut run_error : String? = None
   let code = @process.run(
     command,
@@ -753,12 +760,12 @@ async fn run_command_output(
       text = text + "\n" + err
     }
   }
-  (code, text.trim_end(chars=" \t\r\n").to_string())
+  (code, text.trim_end(chars=" \t\r\n").to_owned())
 }
 
 ///|
 fn temp_output_paths() -> (String, String) {
-  let home = @sys.get_env_var("HOME").unwrap_or(".")
+  let home = @env.get_env_var("HOME").unwrap_or(".")
   let tmp_dir = join_path(home, ".codex_workflow_tmp")
   (
     join_path(tmp_dir, "codex_workflow_cmd_out.txt"),
@@ -768,10 +775,8 @@ fn temp_output_paths() -> (String, String) {
 
 ///|
 fn read_file_safe(path : String) -> String {
-  let result : Result[String, @fs.IOError] = try? @fs.read_file_to_string(path)
-  match result {
-    Ok(text) => text
-    Err(_) => ""
+  @fs.read_file_to_string(path) catch {
+    _ => ""
   }
 }
 
@@ -781,7 +786,7 @@ fn split_lines(text : String) -> Array[String] {
   for line in text.split("\n") {
     let value = line.trim_end(chars="\r")
     if !value.is_empty() {
-      output.push(value.to_string())
+      output.push(value.to_owned())
     }
   }
   output

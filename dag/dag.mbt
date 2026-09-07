@@ -7,6 +7,15 @@
 pub struct ID(String) derive(Eq, Hash, Debug)
 
 ///|
+pub extend ID with Eq::{not_equal, equal}
+
+///|
+pub extend ID with Hash::{hash, hash_combine}
+
+///|
+pub extend ID with Debug::{to_repr}
+
+///|
 /// Create a new ID from a string.
 pub fn ID::new(s : String) -> ID {
   ID(s)
@@ -44,7 +53,7 @@ pub fn TaskNode::new(
   agent : String,
   prompt : String,
 ) -> TaskNode {
-  TaskNode::{ id: ID(id), title, deps, agent: AgentID(agent), prompt }
+  TaskNode::{ id: ID(id), title, deps, agent: AgentID(agent), prompt, }
 }
 
 ///|
@@ -65,7 +74,7 @@ pub fn Workflow::new(
   agents : Array[AgentSpec],
   nodes : Array[TaskNode],
 ) -> Workflow {
-  Workflow::{ agents, nodes }
+  Workflow::{ agents, nodes, }
 }
 
 ///|
@@ -85,9 +94,9 @@ pub struct Graph {
 /// Validates that all node IDs are unique and all dependencies exist.
 /// Returns a Graph that can be used for execution or analysis.
 pub fn Workflow::build_graph(self : Workflow) -> Graph raise {
-  let nodes : Map[ID, TaskNode] = {}
-  let dependents : Map[ID, Array[ID]] = {}
-  let remaining : Map[ID, Int] = {}
+  let nodes : Map[ID, TaskNode] = Map([])
+  let dependents : Map[ID, Array[ID]] = Map([])
+  let remaining : Map[ID, Int] = Map([])
   for node in self.nodes {
     if nodes.get(node.id) is Some(_) {
       @error.fail("Duplicate node id: \{node.id.to_string()}")
@@ -107,7 +116,7 @@ pub fn Workflow::build_graph(self : Workflow) -> Graph raise {
       dependents[dep] = list
     }
   }
-  { nodes, dependents, remaining }
+  { nodes, dependents, remaining, }
 }
 
 ///|
@@ -141,8 +150,8 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   if self.nodes.is_empty() {
     return "(no workflow nodes)"
   }
-  let node_map : Map[ID, TaskNode] = {}
-  let children : Map[ID, Array[ID]] = {}
+  let node_map : Map[ID, TaskNode] = Map([])
+  let children : Map[ID, Array[ID]] = Map([])
   for node in self.nodes {
     node_map[node.id] = node
   }
@@ -153,7 +162,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
       children[dep] = list
     }
   }
-  let indegree : Map[ID, Int] = {}
+  let indegree : Map[ID, Int] = Map([])
   for node in self.nodes {
     indegree[node.id] = node.deps.length()
   }
@@ -179,7 +188,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   } nobreak {
 
   }
-  let level : Map[ID, Int] = {}
+  let level : Map[ID, Int] = Map([])
   let mut max_level = 0
   for node_id in topo {
     if node_map.get(node_id) is Some(node) {
@@ -213,12 +222,12 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     let depth = level.get_or_default(node.id, 0)
     nodes_by_level[depth].push(node.id)
   }
-  let label_len : Map[ID, Int] = {}
+  let label_len : Map[ID, Int] = Map([])
   for node in self.nodes {
     label_len[node.id] = node.id.to_string().length()
   }
-  let positions : Map[ID, Int] = {}
-  let anchors : Map[ID, Int] = {}
+  let positions : Map[ID, Int] = Map([])
+  let anchors : Map[ID, Int] = Map([])
   let gap = 4
   for depth = 0; depth <= max_level; {
     let ids = nodes_by_level[depth]
@@ -303,7 +312,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   let lines : Array[String] = []
   for row in canvas.rows {
     let line = String::from_array(row)
-    lines.push(line.trim_end(chars=" ").to_string())
+    lines.push(line.trim_end(chars=" ").to_owned())
   }
   lines.join("\n")
 }
@@ -317,9 +326,9 @@ pub fn Workflow::render_plan(self : Workflow) -> String {
   if self.nodes.is_empty() {
     return "(no workflow nodes)"
   }
-  let node_map : Map[ID, TaskNode] = {}
-  let dependents : Map[ID, Array[ID]] = {}
-  let remaining : Map[ID, Int] = {}
+  let node_map : Map[ID, TaskNode] = Map([])
+  let dependents : Map[ID, Array[ID]] = Map([])
+  let remaining : Map[ID, Int] = Map([])
   for node in self.nodes {
     if node_map.get(node.id) is Some(_) {
       return "ERROR: Duplicate node id: \{node.id.to_string()}"
@@ -384,7 +393,7 @@ priv struct Canvas {
 /// Allocate a canvas filled with spaces.
 fn Canvas::new(width : Int, height : Int) -> Canvas {
   let rows = Array::makei(height, fn(_) { Array::make(width, ' ') })
-  Canvas::{ width, height, rows }
+  Canvas::{ width, height, rows, }
 }
 
 ///|
@@ -454,7 +463,10 @@ fn draw_label(canvas : Canvas, x : Int, y : Int, label : String) -> Unit {
 }
 
 ///|
-pub impl Show for ID with output(self, logger) {
+pub impl Show for ID with fn output(self, logger) {
   let ID(s) = self
   logger.write_string(s)
 }
+
+///|
+pub extend ID with Show::{output}

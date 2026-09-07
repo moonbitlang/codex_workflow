@@ -1,7 +1,7 @@
 ///|
 async fn main {
   let args = @args.parse(
-    @sys.get_cli_args()[1:],
+    @env.args()[1:],
     flags=[
       "help", "list", "dag", "plan", "review-packages", "readme-packages", "draft",
       "no-draft", "cleanup",

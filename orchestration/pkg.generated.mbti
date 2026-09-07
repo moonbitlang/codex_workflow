@@ -1,10 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "bobzhang/codex_workflow/orchestration"
 
-import(
-  "bobzhang/codex_workflow/dag"
-  "peter-jerry-ye/codex"
-)
+import {
+  "bobzhang/codex_workflow/dag",
+  "peter-jerry-ye/codex",
+}
 
 // Values
 pub async fn run_workflow(@dag.Workflow, @codex.Codex, RunOptions) -> Map[@dag.ID, String]
@@ -23,4 +23,3 @@ pub fn RunOptions::new(String, Int, default_sandbox? : @codex.SandboxMode, defau
 // Type aliases
 
 // Traits
-

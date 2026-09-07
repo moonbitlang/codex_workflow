@@ -21,7 +21,12 @@ pub fn RunOptions::new(
   default_sandbox? : @codex.SandboxMode = @codex.SandboxMode::ReadOnly,
   default_model? : String,
 ) -> RunOptions {
-  RunOptions::{ concurrency, working_directory, default_sandbox, default_model }
+  RunOptions::{
+    concurrency,
+    working_directory,
+    default_sandbox,
+    default_model,
+  }
 }
 
 ///|
@@ -52,20 +57,20 @@ pub async fn run_workflow(
       None
     }
   })
-  let results : Map[@dag.ID, String] = {}
+  let results : Map[@dag.ID, String] = Map([])
   let total = workflow.nodes.length()
   let concurrency = if options.concurrency < 1 {
     1
   } else {
     options.concurrency
   }
-  let done_queue : @aqueue.Queue[(@dag.ID, String)] = @aqueue.Queue::new(
+  let done_queue : @aqueue.Queue[(@dag.ID, String)] = @aqueue.Queue(
     kind=Unbounded,
   )
   let mut completed = 0
   let mut in_flight = 0
   @async.with_task_group(async fn(task_group) {
-    let semaphore = @semaphore.Semaphore::new(concurrency)
+    let semaphore = @semaphore.Semaphore(concurrency)
     let spawn_node = fn(
       node_id : @dag.ID,
       node : @dag.TaskNode,
@@ -158,7 +163,7 @@ async fn run_node(
   )
   let prompt = build_prompt(node, agent, results)
   let response = thread.run(prompt)
-  response.final_response.trim().to_string()
+  response.final_response.trim().to_owned()
 }
 
 ///|
@@ -192,7 +197,7 @@ fn build_prompt(
 fn build_agent_map(
   workflow : @dag.Workflow,
 ) -> Map[@dag.AgentID, @dag.AgentSpec] raise {
-  let agent_map : Map[@dag.AgentID, @dag.AgentSpec] = {}
+  let agent_map : Map[@dag.AgentID, @dag.AgentSpec] = Map([])
   for agent in workflow.agents {
     if agent_map.get(agent.name) is Some(_) {
       @error.fail("Duplicate agent name: \{agent.name.to_string()}")
@@ -207,12 +212,12 @@ fn build_agent_map(
 fn build_agent_semaphores(
   workflow : @dag.Workflow,
 ) -> Map[@dag.AgentID, @semaphore.Semaphore] {
-  let semaphores : Map[@dag.AgentID, @semaphore.Semaphore] = {}
+  let semaphores : Map[@dag.AgentID, @semaphore.Semaphore] = Map([])
   for agent in workflow.agents {
     match agent.max_concurrency {
       Some(limit) => {
         let cap = if limit < 1 { 1 } else { limit }
-        semaphores[agent.name] = @semaphore.Semaphore::new(cap)
+        semaphores[agent.name] = @semaphore.Semaphore(cap)
       }
       None => ()
     }

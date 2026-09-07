@@ -99,7 +99,7 @@ pub fn ReadmeReviewOptions::new(
   model? : String? = None,
   merge_branch? : String = "readme/merge",
 ) -> ReadmeReviewOptions {
-  { repo_path, worktrees_root, base_ref, model, merge_branch }
+  { repo_path, worktrees_root, base_ref, model, merge_branch, }
 }
 
 ///|
