@@ -1,34 +1,34 @@
 ///|
-fn simple_workflow() -> Workflow {
+fn simple_workflow() -> @dag.Workflow {
   let agents = [
-    AgentSpec::new("planner", "Plans the work."),
-    AgentSpec::new("writer", "Writes the output."),
+    @dag.AgentSpec::new("planner", "Plans the work."),
+    @dag.AgentSpec::new("writer", "Writes the output."),
   ]
   let nodes = [
-    TaskNode::new("step1", "First", [], "planner", "Plan the work."),
-    TaskNode::new(
+    @dag.TaskNode::new("step1", "First", [], "planner", "Plan the work."),
+    @dag.TaskNode::new(
       "step2",
       "Second",
-      [ID::new("step1")],
+      [@dag.ID::new("step1")],
       "writer",
       "Write the output.",
     ),
   ]
-  Workflow::new(agents, nodes)
+  @dag.Workflow::new(agents, nodes)
 }
 
 ///|
 test "agent label" {
-  let plain = AgentSpec::new("planner", "Plans")
+  let plain = @dag.AgentSpec::new("planner", "Plans")
   inspect(plain.label(), content="planner")
-  let with_model = AgentSpec::new("planner", "Plans", model="o3")
+  let with_model = @dag.AgentSpec::new("planner", "Plans", model="o3")
   inspect(with_model.label(), content="planner (o3)")
 }
 
 ///|
 test "describe_workflow formats output" {
   let workflow = simple_workflow()
-  let summary = describe_workflow(workflow)
+  let summary = @dag.describe_workflow(workflow)
   inspect(
     summary,
     content="Agents: planner, writer\nWorkflow nodes:\n- step1 [First] (agent: planner) <- (no deps)\n- step2 [Second] (agent: writer) <- step1\n",
@@ -44,17 +44,17 @@ test "render_workflow_plan returns waves" {
 
 ///|
 test "render_workflow_plan detects duplicate ids" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("dup", "First", [], "agent", "first"),
-    TaskNode::new("dup", "Second", [], "agent", "second"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("dup", "First", [], "agent", "first"),
+    @dag.TaskNode::new("dup", "Second", [], "agent", "second"),
   ])
   inspect(workflow.render_plan(), content="ERROR: Duplicate node id: dup")
 }
 
 ///|
 test "render_workflow_plan detects missing deps" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("only", "Only", [ID::new("missing")], "agent", "do"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("only", "Only", [@dag.ID::new("missing")], "agent", "do"),
   ])
   inspect(
     workflow.render_plan(),
@@ -64,9 +64,9 @@ test "render_workflow_plan detects missing deps" {
 
 ///|
 test "render_workflow_plan detects cycles" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("a", "A", [ID::new("b")], "agent", "a"),
-    TaskNode::new("b", "B", [ID::new("a")], "agent", "b"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("a", "A", [@dag.ID::new("b")], "agent", "a"),
+    @dag.TaskNode::new("b", "B", [@dag.ID::new("a")], "agent", "b"),
   ])
   inspect(
     workflow.render_plan(),
@@ -76,16 +76,16 @@ test "render_workflow_plan detects cycles" {
 
 ///|
 test "render_workflow_dag renders chain" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("alpha", "Alpha", [], "agent", "a"),
-    TaskNode::new("beta", "Beta", [ID::new("alpha")], "agent", "b"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("alpha", "Alpha", [], "agent", "a"),
+    @dag.TaskNode::new("beta", "Beta", [@dag.ID::new("alpha")], "agent", "b"),
   ])
   inspect(workflow.render_dag(), content="alpha\n  v\nbeta")
 }
 
 ///|
 test "render_workflow_dag empty" {
-  let workflow = Workflow::new([], [])
+  let workflow = @dag.Workflow::new([], [])
   inspect(workflow.render_dag(), content="(no workflow nodes)")
 }
 
@@ -93,41 +93,47 @@ test "render_workflow_dag empty" {
 
 ///|
 test "build_graph creates valid graph" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("a", "A", [], "agent", "a"),
-    TaskNode::new("b", "B", [ID::new("a")], "agent", "b"),
-    TaskNode::new("c", "C", [ID::new("a"), ID::new("b")], "agent", "c"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("a", "A", [], "agent", "a"),
+    @dag.TaskNode::new("b", "B", [@dag.ID::new("a")], "agent", "b"),
+    @dag.TaskNode::new(
+      "c",
+      "C",
+      [@dag.ID::new("a"), @dag.ID::new("b")],
+      "agent",
+      "c",
+    ),
   ])
   let graph = workflow.build_graph()
   // Check nodes are indexed
   inspect(graph.nodes.length(), content="3")
-  inspect(graph.nodes.get(ID::new("a")) is Some(_), content="true")
-  inspect(graph.nodes.get(ID::new("b")) is Some(_), content="true")
-  inspect(graph.nodes.get(ID::new("c")) is Some(_), content="true")
+  inspect(graph.nodes.get(@dag.ID::new("a")) is Some(_), content="true")
+  inspect(graph.nodes.get(@dag.ID::new("b")) is Some(_), content="true")
+  inspect(graph.nodes.get(@dag.ID::new("c")) is Some(_), content="true")
   // Check dependents (reverse dependencies)
   inspect(
-    graph.dependents.get_or_default(ID::new("a"), []).length(),
+    graph.dependents.get_or_default(@dag.ID::new("a"), []).length(),
     content="2",
   ) // a -> b, c
   inspect(
-    graph.dependents.get_or_default(ID::new("b"), []).length(),
+    graph.dependents.get_or_default(@dag.ID::new("b"), []).length(),
     content="1",
   ) // b -> c
   inspect(
-    graph.dependents.get_or_default(ID::new("c"), []).length(),
+    graph.dependents.get_or_default(@dag.ID::new("c"), []).length(),
     content="0",
   ) // c has no dependents
   // Check remaining counts
-  inspect(graph.remaining.get_or_default(ID::new("a"), -1), content="0") // a has 0 deps
-  inspect(graph.remaining.get_or_default(ID::new("b"), -1), content="1") // b has 1 dep
-  inspect(graph.remaining.get_or_default(ID::new("c"), -1), content="2") // c has 2 deps
+  inspect(graph.remaining.get_or_default(@dag.ID::new("a"), -1), content="0") // a has 0 deps
+  inspect(graph.remaining.get_or_default(@dag.ID::new("b"), -1), content="1") // b has 1 dep
+  inspect(graph.remaining.get_or_default(@dag.ID::new("c"), -1), content="2") // c has 2 deps
 }
 
 ///|
 test "build_graph detects duplicate ids" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("dup", "First", [], "agent", "first"),
-    TaskNode::new("dup", "Second", [], "agent", "second"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("dup", "First", [], "agent", "first"),
+    @dag.TaskNode::new("dup", "Second", [], "agent", "second"),
   ])
   let mut error_msg = ""
   try {
@@ -140,8 +146,8 @@ test "build_graph detects duplicate ids" {
 
 ///|
 test "build_graph detects missing deps" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("only", "Only", [ID::new("missing")], "agent", "do"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("only", "Only", [@dag.ID::new("missing")], "agent", "do"),
   ])
   let mut error_msg = ""
   try {
@@ -155,7 +161,7 @@ test "build_graph detects missing deps" {
 // --- Sample workflow tests ---
 
 ///|
-fn has_agent(names : Array[AgentID], target : AgentID) -> Bool {
+fn has_agent(names : Array[@dag.AgentID], target : @dag.AgentID) -> Bool {
   for name in names {
     if name == target {
       return true
@@ -167,18 +173,18 @@ fn has_agent(names : Array[AgentID], target : AgentID) -> Bool {
 ///|
 test "sample names stable" {
   debug_inspect(
-    sample_names(),
+    @dag.sample_names(),
     content="[\"kickoff\", \"review\", \"incremental_merge\"]",
   )
 }
 
 ///|
 test "sample workflow lookup" {
-  let kickoff_found = match sample_workflow("kickoff") {
+  let kickoff_found = match @dag.sample_workflow("kickoff") {
     Some(_) => true
     None => false
   }
-  let unknown_found = match sample_workflow("unknown") {
+  let unknown_found = match @dag.sample_workflow("unknown") {
     Some(_) => true
     None => false
   }
@@ -188,15 +194,15 @@ test "sample workflow lookup" {
 
 ///|
 test "sample workflow count" {
-  inspect(sample_workflows().length(), content="3")
+  inspect(@dag.sample_workflows().length(), content="3")
 }
 
 ///|
 test "sample workflows reference declared agents" {
   let mut ok = true
-  for item in sample_workflows() {
+  for item in @dag.sample_workflows() {
     let (_, workflow) = item
-    let agent_names : Array[AgentID] = []
+    let agent_names : Array[@dag.AgentID] = []
     for agent in workflow.agents {
       agent_names.push(agent.name)
     }
@@ -212,7 +218,7 @@ test "sample workflows reference declared agents" {
 ///|
 test "sample workflow plans" {
   let mut kickoff_plan = "<missing>"
-  match sample_workflow("kickoff") {
+  match @dag.sample_workflow("kickoff") {
     Some(workflow) => kickoff_plan = workflow.render_plan()
     None => ()
   }
@@ -221,7 +227,7 @@ test "sample workflow plans" {
     content="Wave 1: repo_overview, requirements\nWave 2: workflow_plan\nWave 3: final_brief",
   )
   let mut review_plan = "<missing>"
-  match sample_workflow("review") {
+  match @dag.sample_workflow("review") {
     Some(workflow) => review_plan = workflow.render_plan()
     None => ()
   }
@@ -230,7 +236,7 @@ test "sample workflow plans" {
     content="Wave 1: readme_scan, cli_scan\nWave 2: review_summary",
   )
   let mut merge_plan = "<missing>"
-  match sample_workflow("incremental_merge") {
+  match @dag.sample_workflow("incremental_merge") {
     Some(workflow) => merge_plan = workflow.render_plan()
     None => ()
   }
@@ -245,11 +251,17 @@ test "sample workflow plans" {
 ///|
 test "render_workflow_dag diamond pattern" {
   // Tests a diamond DAG: A -> B, A -> C, B -> D, C -> D
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("A", "Start", [], "agent", "start"),
-    TaskNode::new("B", "Left", [ID::new("A")], "agent", "left"),
-    TaskNode::new("C", "Right", [ID::new("A")], "agent", "right"),
-    TaskNode::new("D", "End", [ID::new("B"), ID::new("C")], "agent", "end"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("A", "Start", [], "agent", "start"),
+    @dag.TaskNode::new("B", "Left", [@dag.ID::new("A")], "agent", "left"),
+    @dag.TaskNode::new("C", "Right", [@dag.ID::new("A")], "agent", "right"),
+    @dag.TaskNode::new(
+      "D",
+      "End",
+      [@dag.ID::new("B"), @dag.ID::new("C")],
+      "agent",
+      "end",
+    ),
   ])
   let dag = workflow.render_dag()
   // Verify it contains the expected node labels
@@ -262,10 +274,10 @@ test "render_workflow_dag diamond pattern" {
 ///|
 test "render_workflow_dag parallel roots" {
   // Tests multiple independent root nodes
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("root1", "First root", [], "agent", "r1"),
-    TaskNode::new("root2", "Second root", [], "agent", "r2"),
-    TaskNode::new("root3", "Third root", [], "agent", "r3"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("root1", "First root", [], "agent", "r1"),
+    @dag.TaskNode::new("root2", "Second root", [], "agent", "r2"),
+    @dag.TaskNode::new("root3", "Third root", [], "agent", "r3"),
   ])
   let dag = workflow.render_dag()
   inspect(dag.contains("root1"), content="true")
@@ -276,14 +288,14 @@ test "render_workflow_dag parallel roots" {
 ///|
 test "render_workflow_dag wide fan-in" {
   // Tests a node with many dependencies (fan-in)
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("a", "A", [], "agent", "a"),
-    TaskNode::new("b", "B", [], "agent", "b"),
-    TaskNode::new("c", "C", [], "agent", "c"),
-    TaskNode::new(
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("a", "A", [], "agent", "a"),
+    @dag.TaskNode::new("b", "B", [], "agent", "b"),
+    @dag.TaskNode::new("c", "C", [], "agent", "c"),
+    @dag.TaskNode::new(
       "merge",
       "Merge",
-      [ID::new("a"), ID::new("b"), ID::new("c")],
+      [@dag.ID::new("a"), @dag.ID::new("b"), @dag.ID::new("c")],
       "agent",
       "merge",
     ),
@@ -298,11 +310,11 @@ test "render_workflow_dag wide fan-in" {
 ///|
 test "render_workflow_dag fan-out" {
   // Tests a node with many dependents (fan-out)
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("root", "Root", [], "agent", "root"),
-    TaskNode::new("child1", "C1", [ID::new("root")], "agent", "c1"),
-    TaskNode::new("child2", "C2", [ID::new("root")], "agent", "c2"),
-    TaskNode::new("child3", "C3", [ID::new("root")], "agent", "c3"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("root", "Root", [], "agent", "root"),
+    @dag.TaskNode::new("child1", "C1", [@dag.ID::new("root")], "agent", "c1"),
+    @dag.TaskNode::new("child2", "C2", [@dag.ID::new("root")], "agent", "c2"),
+    @dag.TaskNode::new("child3", "C3", [@dag.ID::new("root")], "agent", "c3"),
   ])
   let dag = workflow.render_dag()
   inspect(dag.contains("root"), content="true")
@@ -314,12 +326,12 @@ test "render_workflow_dag fan-out" {
 ///|
 test "render_workflow_dag deep chain" {
   // Tests a long linear chain
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("n1", "N1", [], "agent", "1"),
-    TaskNode::new("n2", "N2", [ID::new("n1")], "agent", "2"),
-    TaskNode::new("n3", "N3", [ID::new("n2")], "agent", "3"),
-    TaskNode::new("n4", "N4", [ID::new("n3")], "agent", "4"),
-    TaskNode::new("n5", "N5", [ID::new("n4")], "agent", "5"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("n1", "N1", [], "agent", "1"),
+    @dag.TaskNode::new("n2", "N2", [@dag.ID::new("n1")], "agent", "2"),
+    @dag.TaskNode::new("n3", "N3", [@dag.ID::new("n2")], "agent", "3"),
+    @dag.TaskNode::new("n4", "N4", [@dag.ID::new("n3")], "agent", "4"),
+    @dag.TaskNode::new("n5", "N5", [@dag.ID::new("n4")], "agent", "5"),
   ])
   let dag = workflow.render_dag()
   let plan = workflow.render_plan()
@@ -346,11 +358,11 @@ test "render_workflow_dag deep chain" {
 ///|
 test "render_workflow_plan parallel wide" {
   // Tests many parallel nodes in single wave
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("p1", "P1", [], "agent", "1"),
-    TaskNode::new("p2", "P2", [], "agent", "2"),
-    TaskNode::new("p3", "P3", [], "agent", "3"),
-    TaskNode::new("p4", "P4", [], "agent", "4"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("p1", "P1", [], "agent", "1"),
+    @dag.TaskNode::new("p2", "P2", [], "agent", "2"),
+    @dag.TaskNode::new("p3", "P3", [], "agent", "3"),
+    @dag.TaskNode::new("p4", "P4", [], "agent", "4"),
   ])
   let plan = workflow.render_plan()
   inspect(plan, content="Wave 1: p1, p2, p3, p4")
@@ -359,16 +371,16 @@ test "render_workflow_plan parallel wide" {
 
 ///|
 test "render_workflow_dag single node" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("only", "Only", [], "agent", "only"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("only", "Only", [], "agent", "only"),
   ])
   inspect(workflow.render_dag(), content="only")
 }
 
 ///|
 test "render_workflow_plan single node" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("only", "Only", [], "agent", "only"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("only", "Only", [], "agent", "only"),
   ])
   inspect(workflow.render_plan(), content="Wave 1: only")
 }
@@ -390,24 +402,24 @@ test "render_workflow_plan single node" {
 ///       final
 /// ```
 test "render_dag complex multi-layer" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("start", "Start", [], "agent", "start"),
-    TaskNode::new("A", "Branch A", [ID::new("start")], "agent", "a"),
-    TaskNode::new("B", "Branch B", [ID::new("start")], "agent", "b"),
-    TaskNode::new("C", "Branch C", [ID::new("start")], "agent", "c"),
-    TaskNode::new(
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("start", "Start", [], "agent", "start"),
+    @dag.TaskNode::new("A", "Branch A", [@dag.ID::new("start")], "agent", "a"),
+    @dag.TaskNode::new("B", "Branch B", [@dag.ID::new("start")], "agent", "b"),
+    @dag.TaskNode::new("C", "Branch C", [@dag.ID::new("start")], "agent", "c"),
+    @dag.TaskNode::new(
       "merge1",
       "Merge 1",
-      [ID::new("A"), ID::new("B"), ID::new("C")],
+      [@dag.ID::new("A"), @dag.ID::new("B"), @dag.ID::new("C")],
       "agent",
       "merge1",
     ),
-    TaskNode::new("D", "Branch D", [ID::new("merge1")], "agent", "d"),
-    TaskNode::new("E", "Branch E", [ID::new("merge1")], "agent", "e"),
-    TaskNode::new(
+    @dag.TaskNode::new("D", "Branch D", [@dag.ID::new("merge1")], "agent", "d"),
+    @dag.TaskNode::new("E", "Branch E", [@dag.ID::new("merge1")], "agent", "e"),
+    @dag.TaskNode::new(
       "final",
       "Final",
-      [ID::new("D"), ID::new("E")],
+      [@dag.ID::new("D"), @dag.ID::new("E")],
       "agent",
       "final",
     ),
@@ -444,24 +456,24 @@ test "render_dag complex multi-layer" {
 ///           collector
 /// ```
 test "render_dag parallel chains with collector" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
     // Chain 1
-    TaskNode::new("c1a", "Chain1 A", [], "agent", "c1a"),
-    TaskNode::new("c1b", "Chain1 B", [ID::new("c1a")], "agent", "c1b"),
-    TaskNode::new("c1c", "Chain1 C", [ID::new("c1b")], "agent", "c1c"),
+    @dag.TaskNode::new("c1a", "Chain1 A", [], "agent", "c1a"),
+    @dag.TaskNode::new("c1b", "Chain1 B", [@dag.ID::new("c1a")], "agent", "c1b"),
+    @dag.TaskNode::new("c1c", "Chain1 C", [@dag.ID::new("c1b")], "agent", "c1c"),
     // Chain 2
-    TaskNode::new("c2a", "Chain2 A", [], "agent", "c2a"),
-    TaskNode::new("c2b", "Chain2 B", [ID::new("c2a")], "agent", "c2b"),
-    TaskNode::new("c2c", "Chain2 C", [ID::new("c2b")], "agent", "c2c"),
+    @dag.TaskNode::new("c2a", "Chain2 A", [], "agent", "c2a"),
+    @dag.TaskNode::new("c2b", "Chain2 B", [@dag.ID::new("c2a")], "agent", "c2b"),
+    @dag.TaskNode::new("c2c", "Chain2 C", [@dag.ID::new("c2b")], "agent", "c2c"),
     // Chain 3
-    TaskNode::new("c3a", "Chain3 A", [], "agent", "c3a"),
-    TaskNode::new("c3b", "Chain3 B", [ID::new("c3a")], "agent", "c3b"),
-    TaskNode::new("c3c", "Chain3 C", [ID::new("c3b")], "agent", "c3c"),
+    @dag.TaskNode::new("c3a", "Chain3 A", [], "agent", "c3a"),
+    @dag.TaskNode::new("c3b", "Chain3 B", [@dag.ID::new("c3a")], "agent", "c3b"),
+    @dag.TaskNode::new("c3c", "Chain3 C", [@dag.ID::new("c3b")], "agent", "c3c"),
     // Collector
-    TaskNode::new(
+    @dag.TaskNode::new(
       "collect",
       "Collector",
-      [ID::new("c1c"), ID::new("c2c"), ID::new("c3c")],
+      [@dag.ID::new("c1c"), @dag.ID::new("c2c"), @dag.ID::new("c3c")],
       "agent",
       "collect",
     ),
@@ -511,14 +523,32 @@ test "render_dag parallel chains with collector" {
 ///      end
 /// ```
 test "render_dag cross dependencies" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("A", "A", [], "agent", "a"),
-    TaskNode::new("B", "B", [], "agent", "b"),
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("A", "A", [], "agent", "a"),
+    @dag.TaskNode::new("B", "B", [], "agent", "b"),
     // C depends on both A and B
-    TaskNode::new("C", "C", [ID::new("A"), ID::new("B")], "agent", "c"),
+    @dag.TaskNode::new(
+      "C",
+      "C",
+      [@dag.ID::new("A"), @dag.ID::new("B")],
+      "agent",
+      "c",
+    ),
     // D depends on both A and B
-    TaskNode::new("D", "D", [ID::new("A"), ID::new("B")], "agent", "d"),
-    TaskNode::new("end", "End", [ID::new("C"), ID::new("D")], "agent", "end"),
+    @dag.TaskNode::new(
+      "D",
+      "D",
+      [@dag.ID::new("A"), @dag.ID::new("B")],
+      "agent",
+      "d",
+    ),
+    @dag.TaskNode::new(
+      "end",
+      "End",
+      [@dag.ID::new("C"), @dag.ID::new("D")],
+      "agent",
+      "end",
+    ),
   ])
   let dag = workflow.render_dag()
   // Verify all nodes present
@@ -545,19 +575,19 @@ test "render_dag cross dependencies" {
 ///|
 /// Tests rendering of a workflow with long node names to verify spacing.
 test "render_dag long node names" {
-  let workflow = Workflow::new([AgentSpec::new("agent", "Role.")], [
-    TaskNode::new("initialization", "Init", [], "agent", "init"),
-    TaskNode::new(
+  let workflow = @dag.Workflow::new([@dag.AgentSpec::new("agent", "Role.")], [
+    @dag.TaskNode::new("initialization", "Init", [], "agent", "init"),
+    @dag.TaskNode::new(
       "processing",
       "Process",
-      [ID::new("initialization")],
+      [@dag.ID::new("initialization")],
       "agent",
       "process",
     ),
-    TaskNode::new(
+    @dag.TaskNode::new(
       "finalization",
       "Final",
-      [ID::new("processing")],
+      [@dag.ID::new("processing")],
       "agent",
       "final",
     ),
