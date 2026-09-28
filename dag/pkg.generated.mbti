@@ -2,8 +2,8 @@
 package "bobzhang/codex_workflow/dag"
 
 import {
+  "moonbit-community/codex",
   "moonbitlang/core/debug",
-  "peter-jerry-ye/codex",
 }
 
 // Values
