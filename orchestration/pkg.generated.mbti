@@ -3,7 +3,7 @@ package "bobzhang/codex_workflow/orchestration"
 
 import {
   "bobzhang/codex_workflow/dag",
-  "peter-jerry-ye/codex",
+  "moonbit-community/codex",
 }
 
 // Values
