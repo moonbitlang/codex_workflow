@@ -94,10 +94,10 @@ pub fn PreparedReadmeReview::merge_branch(
 /// Creates default options with sensible defaults.
 pub fn ReadmeReviewOptions::new(
   repo_path : String,
-  base_ref? : String = "origin/main",
-  worktrees_root? : String = "",
-  model? : String? = None,
-  merge_branch? : String = "readme/merge",
+  base_ref~ : String = "origin/main",
+  worktrees_root~ : String = "",
+  model~ : String? = None,
+  merge_branch~ : String = "readme/merge",
 ) -> ReadmeReviewOptions {
   { repo_path, worktrees_root, base_ref, model, merge_branch, }
 }

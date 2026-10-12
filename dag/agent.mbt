@@ -39,7 +39,7 @@ pub struct AgentSpec {
   model : String?
   sandbox_mode : @codex.SandboxMode?
   working_directory : String?
-  max_concurrency : Int?
+  max_concurrency : Int32?
 }
 
 ///|
@@ -54,7 +54,7 @@ pub fn AgentSpec::new(
   model? : String,
   sandbox_mode? : @codex.SandboxMode,
   working_directory? : String,
-  max_concurrency? : Int,
+  max_concurrency? : Int32,
 ) -> AgentSpec {
   AgentSpec::{
     name: AgentID(name),

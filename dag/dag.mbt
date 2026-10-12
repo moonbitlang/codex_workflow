@@ -85,7 +85,7 @@ pub fn Workflow::new(
 pub struct Graph {
   nodes : Map[ID, TaskNode]
   dependents : Map[ID, Array[ID]]
-  remaining : Map[ID, Int]
+  remaining : Map[ID, Int32]
 }
 
 ///|
@@ -96,7 +96,7 @@ pub struct Graph {
 pub fn Workflow::build_graph(self : Workflow) -> Graph raise {
   let nodes : Map[ID, TaskNode] = Map([])
   let dependents : Map[ID, Array[ID]] = Map([])
-  let remaining : Map[ID, Int] = Map([])
+  let remaining : Map[ID, Int32] = Map([])
   for node in self.nodes {
     if nodes.get(node.id) is Some(_) {
       @error.fail("Duplicate node id: \{node.id.to_string()}")
@@ -162,7 +162,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
       children[dep] = list
     }
   }
-  let indegree : Map[ID, Int] = Map([])
+  let indegree : Map[ID, Int32] = Map([])
   for node in self.nodes {
     indegree[node.id] = node.deps.length()
   }
@@ -188,7 +188,7 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
   } nobreak {
 
   }
-  let level : Map[ID, Int] = Map([])
+  let level : Map[ID, Int32] = Map([])
   let mut max_level = 0
   for node_id in topo {
     if node_map.get(node_id) is Some(node) {
@@ -222,12 +222,12 @@ pub fn Workflow::render_dag(self : Workflow) -> String {
     let depth = level.get_or_default(node.id, 0)
     nodes_by_level[depth].push(node.id)
   }
-  let label_len : Map[ID, Int] = Map([])
+  let label_len : Map[ID, Int32] = Map([])
   for node in self.nodes {
     label_len[node.id] = node.id.to_string().length()
   }
-  let positions : Map[ID, Int] = Map([])
-  let anchors : Map[ID, Int] = Map([])
+  let positions : Map[ID, Int32] = Map([])
+  let anchors : Map[ID, Int32] = Map([])
   let gap = 4
   for depth = 0; depth <= max_level; {
     let ids = nodes_by_level[depth]
@@ -328,7 +328,7 @@ pub fn Workflow::render_plan(self : Workflow) -> String {
   }
   let node_map : Map[ID, TaskNode] = Map([])
   let dependents : Map[ID, Array[ID]] = Map([])
-  let remaining : Map[ID, Int] = Map([])
+  let remaining : Map[ID, Int32] = Map([])
   for node in self.nodes {
     if node_map.get(node.id) is Some(_) {
       return "ERROR: Duplicate node id: \{node.id.to_string()}"
@@ -384,21 +384,21 @@ pub fn Workflow::render_plan(self : Workflow) -> String {
 ///|
 /// Internal ASCII canvas for workflow rendering.
 priv struct Canvas {
-  width : Int
-  height : Int
+  width : Int32
+  height : Int32
   rows : Array[Array[Char]]
 }
 
 ///|
 /// Allocate a canvas filled with spaces.
-fn Canvas::new(width : Int, height : Int) -> Canvas {
+fn Canvas::new(width : Int32, height : Int32) -> Canvas {
   let rows = Array::makei(height, fn(_) { Array::make(width, ' ') })
   Canvas::{ width, height, rows, }
 }
 
 ///|
 /// Set a character on the canvas, merging with existing edges when needed.
-fn Canvas::set(canvas : Canvas, x : Int, y : Int, ch : Char) -> Unit {
+fn Canvas::set(canvas : Canvas, x : Int32, y : Int32, ch : Char) -> Unit {
   if x < 0 || y < 0 || x >= canvas.width || y >= canvas.height {
     return
   }
@@ -437,7 +437,7 @@ fn merge_char(existing : Char, incoming : Char) -> Char {
 
 ///|
 /// Draw a horizontal line between two x positions.
-fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
+fn draw_hline(canvas : Canvas, y : Int32, x1 : Int32, x2 : Int32) -> Unit {
   let start = if x1 < x2 { x1 } else { x2 }
   let end = if x1 < x2 { x2 } else { x1 }
   for x = start; x <= end; {
@@ -450,7 +450,7 @@ fn draw_hline(canvas : Canvas, y : Int, x1 : Int, x2 : Int) -> Unit {
 
 ///|
 /// Draw a label string at a fixed row and starting column.
-fn draw_label(canvas : Canvas, x : Int, y : Int, label : String) -> Unit {
+fn draw_label(canvas : Canvas, x : Int32, y : Int32, label : String) -> Unit {
   if y < 0 || y >= canvas.height {
     return
   }
