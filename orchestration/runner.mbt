@@ -5,7 +5,7 @@
 /// `working_directory` is the default repo root for all agents.
 /// `default_sandbox` and `default_model` apply when agents do not override them.
 pub struct RunOptions {
-  concurrency : Int
+  concurrency : Int32
   working_directory : String
   default_sandbox : @codex.SandboxMode
   default_model : String?
@@ -17,8 +17,8 @@ pub struct RunOptions {
 /// `default_sandbox` defaults to `ReadOnly` when not provided.
 pub fn RunOptions::new(
   working_directory : String,
-  concurrency : Int,
-  default_sandbox? : @codex.SandboxMode = @codex.SandboxMode::ReadOnly,
+  concurrency : Int32,
+  default_sandbox~ : @codex.SandboxMode = @codex.SandboxMode::ReadOnly,
   default_model? : String,
 ) -> RunOptions {
   RunOptions::{

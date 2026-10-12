@@ -82,11 +82,11 @@ pub fn PreparedReview::model(self : PreparedReview) -> String? {
 /// Creates default options with sensible defaults.
 pub fn PackageReviewOptions::new(
   repo_path : String,
-  base_ref? : String = "origin/main",
-  worktrees_root? : String = "",
-  model? : String? = None,
-  draft? : Bool = true,
-  cleanup? : Bool = false,
+  base_ref~ : String = "origin/main",
+  worktrees_root~ : String = "",
+  model~ : String? = None,
+  draft~ : Bool = true,
+  cleanup~ : Bool = false,
 ) -> PackageReviewOptions {
   { repo_path, worktrees_root, base_ref, model, draft, cleanup, }
 }
@@ -392,7 +392,7 @@ fn slugify_package(package_dir : String) -> String {
   for ch in package_dir {
     match ch {
       '/' | '\\' => builder.write_char('-')
-      'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' =>
+      'a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '_' | '.' =>
         builder.write_char(ch)
       _ => builder.write_char('-')
     }
@@ -716,7 +716,7 @@ async fn run_command_output(
   command : String,
   args : Array[String],
   cwd? : StringView,
-) -> (Int, String) {
+) -> (Int32, String) {
   let (stdout_path, stderr_path) = temp_output_paths()
   let tmp_dir = @path.Path(stdout_path).dirname().to_string()
   ensure_directory(tmp_dir)

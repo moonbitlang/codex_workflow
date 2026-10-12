@@ -251,7 +251,7 @@ fn help_message() -> String {
 }
 
 ///|
-async fn parse_concurrency(value : String?, default_value : Int) -> Int {
+async fn parse_concurrency(value : String?, default_value : Int32) -> Int32 {
   match value {
     Some(text) =>
       @string.parse_int(text) catch {
